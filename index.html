@@ -1,0 +1,2812 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analítica Bibliotecaria · PUCV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+/* ==========================================
+   VARIABLES Y RESET
+   ========================================== */
+:root {
+  --navy: #1e3660;
+  --navy-dark: #162849;
+  --navy-light: #2a4a7f;
+  --gold: #c9a444;
+  --gold-light: #e8c56a;
+  --gold-pale: #fdf6e3;
+  --bg: #f0f3f8;
+  --surface: #ffffff;
+  --surface2: #f8f9fc;
+  --border: #e2e8f0;
+  --text: #1a2535;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --info: #0369a1;
+  --info-bg: #f0f9ff;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,.07), 0 10px 30px rgba(0,0,0,.08);
+  --shadow-lg: 0 10px 25px rgba(0,0,0,.1), 0 20px 60px rgba(0,0,0,.08);
+  --transition: 0.2s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Sora', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ==========================================
+   HEADER
+   ========================================== */
+.app-header {
+  background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy) 60%, var(--navy-light) 100%);
+  color: white;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 20px rgba(30,54,96,.4);
+}
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+}
+.header-brand { display: flex; align-items: center; gap: 14px; }
+.brand-icon {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 4px 12px rgba(201,164,68,.4);
+  flex-shrink: 0;
+}
+.brand-text { line-height: 1.2; }
+.brand-title { font-size: 15px; font-weight: 700; letter-spacing: .3px; }
+.brand-sub { font-size: 11px; color: rgba(255,255,255,.6); font-weight: 400; }
+.header-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,.6); }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #6b7280; transition: background var(--transition); }
+.status-dot.active { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,.5); }
+
+/* ==========================================
+   NAV TABS
+   ========================================== */
+.nav-tabs { display: flex; padding: 0 28px; gap: 2px; overflow-x: auto; }
+.nav-tab {
+  padding: 11px 18px;
+  font-size: 13px; font-weight: 500;
+  color: rgba(255,255,255,.6);
+  cursor: pointer; border: none; background: none;
+  font-family: 'Sora', sans-serif;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  transition: all var(--transition);
+  display: flex; align-items: center; gap: 7px;
+}
+.nav-tab:hover { color: rgba(255,255,255,.9); }
+.nav-tab.active { color: white; border-bottom-color: var(--gold); }
+.tab-badge {
+  background: var(--gold); color: var(--navy-dark);
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 10px; display: none;
+}
+.tab-badge.visible { display: inline-block; }
+
+/* ==========================================
+   MAIN LAYOUT
+   ========================================== */
+.main { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ==========================================
+   UPLOAD ZONE — MEJORA #1: botón y card como label
+   ========================================== */
+.upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+@media (max-width: 768px) { .upload-grid { grid-template-columns: 1fr; } }
+
+/* FIX: la card es ahora un <label> para máxima compatibilidad */
+.upload-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border);
+  padding: 32px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+  display: block; /* label como bloque */
+}
+/* FIX #1: pointer-events: none en ::before para que no bloquee clics */
+.upload-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(30,54,96,.02), rgba(201,164,68,.03));
+  opacity: 0;
+  transition: opacity var(--transition);
+  pointer-events: none; /* ← CRÍTICO: evita bloqueo de clics */
+}
+.upload-card:hover { border-color: var(--navy); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.upload-card:hover::before { opacity: 1; }
+.upload-card.dragover { border-color: var(--gold); background: var(--gold-pale); }
+.upload-card.loaded { border-color: var(--success); border-style: solid; }
+
+.upload-icon { font-size: 40px; margin-bottom: 12px; display: block; }
+.upload-title { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+.upload-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+.upload-input { display: none; }
+
+.upload-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 18px;
+  background: var(--navy); color: white;
+  border: none; border-radius: var(--radius-sm);
+  font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition);
+  pointer-events: none; /* el label maneja el clic */
+}
+.upload-card:hover .upload-btn { background: var(--navy-light); }
+
+.upload-file-info {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--success-bg); border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--success);
+  display: none; text-align: left;
+}
+.upload-file-info.visible { display: flex; align-items: center; gap: 8px; }
+
+/* ==========================================
+   CARDS Y KPI
+   ========================================== */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.section-title {
+  font-size: 16px; font-weight: 700; color: var(--navy);
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::before {
+  content: ''; width: 4px; height: 18px;
+  background: var(--gold); border-radius: 2px;
+}
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px; margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 20px; box-shadow: var(--shadow);
+  position: relative; overflow: hidden;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.kpi-card::after {
+  content: ''; position: absolute;
+  top: 0; left: 0; width: 4px; height: 100%;
+  border-radius: 2px 0 0 2px;
+}
+.kpi-card.green::after { background: var(--success); }
+.kpi-card.yellow::after { background: var(--warning); }
+.kpi-card.red::after { background: var(--danger); }
+.kpi-card.blue::after { background: var(--info); }
+.kpi-card.gold::after { background: var(--gold); }
+.kpi-card.navy::after { background: var(--navy); }
+.kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--text-muted); margin-bottom: 8px; }
+.kpi-value { font-size: 28px; font-weight: 800; color: var(--navy); font-family: 'JetBrains Mono', monospace; line-height: 1; margin-bottom: 6px; }
+.kpi-sub { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 5px; }
+.kpi-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.badge-green { background: var(--success-bg); color: var(--success); }
+.badge-yellow { background: var(--warning-bg); color: var(--warning); }
+.badge-red { background: var(--danger-bg); color: var(--danger); }
+.badge-blue { background: var(--info-bg); color: var(--info); }
+
+/* ==========================================
+   CHARTS
+   ========================================== */
+.charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px; }
+.chart-card-full { grid-column: 1 / -1; }
+@media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+.chart-card { background: var(--surface); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+.chart-title { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 16px; display: flex; align-items: center; gap: 6px; }
+.chart-canvas-wrap { position: relative; height: 260px; }
+.chart-canvas-wrap.tall { height: 320px; }
+
+/* ==========================================
+   TABLES
+   ========================================== */
+.table-card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 20px; }
+.table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface2); }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: var(--navy); color: white; padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background var(--transition); }
+tbody tr:hover { background: var(--surface2); }
+tbody td { padding: 10px 14px; color: var(--text); }
+
+/* ==========================================
+   ALERTS Y RECOMENDACIONES
+   ========================================== */
+.alert { padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 10px; display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+.alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.alert-success { background: var(--success-bg); color: var(--success); }
+.alert-warning { background: var(--warning-bg); color: var(--warning); }
+.alert-danger { background: var(--danger-bg); color: var(--danger); }
+.alert-info { background: var(--info-bg); color: var(--info); }
+
+/* ==========================================
+   SEMÁFOROS
+   ========================================== */
+.semaforo { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+.semaforo-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.semaforo-verde .semaforo-dot { background: var(--success); box-shadow: 0 0 6px rgba(22,163,74,.4); }
+.semaforo-amarillo .semaforo-dot { background: var(--warning); box-shadow: 0 0 6px rgba(217,119,6,.4); }
+.semaforo-rojo .semaforo-dot { background: var(--danger); box-shadow: 0 0 6px rgba(220,38,38,.4); }
+
+/* ==========================================
+   FILTROS — MEJORAS #2 #3 #4: año y rangos
+   ========================================== */
+.filters-bar {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 16px 20px; box-shadow: var(--shadow); margin-bottom: 20px;
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+}
+.filter-group { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
+.filter-group-range { display: flex; flex-direction: column; gap: 4px; }
+.filter-range-row { display: flex; align-items: center; gap: 6px; }
+.filter-range-sep { font-size: 12px; color: var(--text-muted); padding-top: 2px; }
+.filter-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+.filter-active-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; background: var(--navy); color: white;
+  border-radius: 20px; font-size: 11px; font-weight: 600; margin-left: auto;
+}
+.filter-reset-btn {
+  padding: 8px 14px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--text-muted); cursor: pointer;
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
+  transition: all var(--transition);
+}
+.filter-reset-btn:hover { border-color: var(--danger); color: var(--danger); }
+select, input[type="number"] {
+  padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: 'Sora', sans-serif; font-size: 13px; color: var(--text);
+  background: var(--surface); cursor: pointer;
+  transition: border-color var(--transition); outline: none;
+}
+select:focus, input:focus { border-color: var(--navy); }
+
+/* ==========================================
+   BOTONES
+   ========================================== */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border: none; border-radius: var(--radius-sm); font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all var(--transition); white-space: nowrap; }
+.btn-primary { background: var(--navy); color: white; }
+.btn-primary:hover { background: var(--navy-light); transform: translateY(-1px); }
+.btn-gold { background: var(--gold); color: white; }
+.btn-gold:hover { background: var(--gold-light); transform: translateY(-1px); }
+.btn-outline { background: transparent; color: var(--navy); border: 1.5px solid var(--navy); }
+.btn-outline:hover { background: var(--navy); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { opacity: .85; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ==========================================
+   PROGRESS BAR
+   ========================================== */
+.progress-bar-wrap { background: var(--border); border-radius: 6px; height: 8px; overflow: hidden; flex: 1; min-width: 80px; }
+.progress-bar { height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--navy), var(--navy-light)); transition: width .8s ease; }
+.progress-bar.gold { background: linear-gradient(90deg, var(--gold), var(--gold-light)); }
+.progress-bar.green { background: linear-gradient(90deg, #16a34a, #4ade80); }
+.progress-bar.red { background: linear-gradient(90deg, #dc2626, #f87171); }
+
+/* ==========================================
+   LOADER — MEJORA #7: progreso de procesamiento
+   ========================================== */
+.loader-overlay {
+  position: fixed; inset: 0;
+  background: rgba(30,54,96,.85); backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+}
+.loader-overlay.active { display: flex; }
+.loader-spinner { width: 56px; height: 56px; border: 4px solid rgba(255,255,255,.2); border-top-color: var(--gold); border-radius: 50%; animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { color: white; font-size: 15px; font-weight: 600; }
+.loader-sub { color: rgba(255,255,255,.6); font-size: 13px; }
+.loader-progress-wrap { width: 280px; height: 6px; background: rgba(255,255,255,.15); border-radius: 3px; overflow: hidden; }
+.loader-progress-bar { height: 100%; background: var(--gold); border-radius: 3px; transition: width .3s ease; width: 0%; }
+
+/* ==========================================
+   EMPTY STATE
+   ========================================== */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.empty-icon { font-size: 56px; margin-bottom: 16px; opacity: .5; }
+.empty-title { font-size: 17px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+.empty-sub { font-size: 13px; max-width: 380px; margin: 0 auto; }
+
+/* ==========================================
+   METODOLOGÍA
+   ========================================== */
+.methodology-section { background: var(--surface); border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow); margin-bottom: 20px; }
+.method-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid var(--border); }
+.method-icon { width: 48px; height: 48px; background: linear-gradient(135deg, var(--navy), var(--navy-light)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: white; flex-shrink: 0; }
+.method-title-block h2 { font-size: 18px; font-weight: 800; color: var(--navy); }
+.method-title-block p { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.formula-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.formula-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: box-shadow var(--transition); }
+.formula-card:hover { box-shadow: var(--shadow-md); }
+.formula-card-header { background: var(--navy); color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+.formula-num { width: 24px; height: 24px; background: var(--gold); color: var(--navy-dark); border-radius: 6px; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.formula-name { font-size: 13px; font-weight: 700; flex: 1; margin-left: 10px; }
+.formula-card-body { padding: 16px; }
+.formula-obj { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+.formula-box { background: var(--navy-dark); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--gold-light); line-height: 1.8; }
+.formula-vars { font-size: 11px; color: var(--text-muted); }
+.formula-vars span { display: block; padding: 2px 0; }
+.formula-vars strong { color: var(--navy); }
+.formula-interp { margin-top: 10px; padding: 8px 12px; background: var(--surface2); border-radius: var(--radius-sm); font-size: 11px; color: var(--text-muted); border-left: 3px solid var(--gold); }
+
+/* ==========================================
+   VALIDATION — MEJORA #6
+   ========================================== */
+.warnings-panel { background: var(--warning-bg); border: 1px solid rgba(217,119,6,.3); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; }
+.warnings-title { font-size: 13px; font-weight: 700; color: var(--warning); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.warning-item { font-size: 12px; color: var(--text); padding: 4px 0; border-bottom: 1px solid rgba(217,119,6,.1); display: flex; align-items: center; gap: 8px; }
+.warning-item:last-child { border-bottom: none; }
+.confidence-badge { padding: 2px 7px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+.conf-high { background: var(--success-bg); color: var(--success); }
+.conf-mid { background: var(--warning-bg); color: var(--warning); }
+.conf-low { background: var(--danger-bg); color: var(--danger); }
+
+/* ==========================================
+   DOCUMENTACIÓN
+   ========================================== */
+.doc-section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 28px;
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+}
+.doc-section-title {
+  font-size: 17px; font-weight: 800; color: var(--navy);
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 6px;
+}
+.doc-section-sub {
+  font-size: 13px; color: var(--text-muted); margin-bottom: 20px;
+  padding-bottom: 16px; border-bottom: 2px solid var(--border);
+}
+.doc-file-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 20px; margin-bottom: 0;
+}
+@media(max-width:860px){ .doc-file-grid { grid-template-columns: 1fr; } }
+
+.doc-file-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden;
+}
+.doc-file-header {
+  background: var(--navy); color: white;
+  padding: 12px 18px;
+  display: flex; align-items: center; gap: 10px;
+}
+.doc-file-icon {
+  width: 32px; height: 32px;
+  background: var(--gold); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.doc-file-name { font-size: 14px; font-weight: 700; }
+.doc-file-desc { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 1px; }
+
+.doc-col-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.doc-col-table thead th {
+  background: var(--surface2); color: var(--navy);
+  padding: 8px 14px; text-align: left;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  border-bottom: 1px solid var(--border);
+}
+.doc-col-table tbody td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+.doc-col-table tbody tr:last-child td { border-bottom: none; }
+.doc-col-table tbody tr:hover td { background: var(--surface2); }
+
+.col-req  { color: var(--danger); font-weight: 700; font-size: 10px; }
+.col-opt  { color: var(--warning); font-weight: 700; font-size: 10px; }
+.col-rec  { color: var(--success); font-weight: 700; font-size: 10px; }
+
+.alias-list { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+
+.doc-formats {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;
+}
+.doc-format-badge {
+  background: var(--navy); color: white;
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.doc-indicator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+}
+.doc-ind-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; transition: box-shadow var(--transition);
+}
+.doc-ind-card:hover { box-shadow: var(--shadow-md); }
+.doc-ind-header {
+  background: var(--navy); color: white;
+  padding: 11px 16px; display: flex; align-items: center; gap: 10px;
+}
+.doc-ind-num {
+  width: 26px; height: 26px; background: var(--gold); color: var(--navy-dark);
+  border-radius: 6px; font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.doc-ind-name { font-size: 13px; font-weight: 700; flex: 1; }
+.doc-ind-body { padding: 14px 16px; }
+.doc-ind-obj { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+.doc-formula-box {
+  background: var(--navy-dark); border-radius: var(--radius-sm);
+  padding: 10px 13px; margin-bottom: 10px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  color: var(--gold-light); letter-spacing: .3px;
+}
+.doc-vars { font-size: 11px; color: var(--text-muted); }
+.doc-vars span { display: block; padding: 1px 0; }
+.doc-vars strong { color: var(--navy); }
+.doc-interp {
+  margin-top: 10px; padding: 7px 11px;
+  background: var(--surface2); border-radius: var(--radius-sm);
+  font-size: 11px; color: var(--text-muted);
+  border-left: 3px solid var(--gold);
+}
+.doc-source-tag {
+  display: inline-flex; align-items: center;
+  background: rgba(30,54,96,.08); color: var(--navy);
+  font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 8px;
+  margin-top: 6px;
+}
+
+.doc-descarte-box {
+  background: linear-gradient(135deg, rgba(220,38,38,.06), rgba(220,38,38,.02));
+  border: 1.5px solid rgba(220,38,38,.25);
+  border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px;
+}
+.doc-descarte-title {
+  font-size: 15px; font-weight: 800; color: var(--danger);
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.doc-descarte-body { font-size: 13px; color: var(--text); line-height: 1.7; }
+
+.doc-note {
+  background: var(--gold-pale); border: 1px solid rgba(201,164,68,.3);
+  border-radius: var(--radius-sm); padding: 12px 16px;
+  font-size: 12px; color: var(--text); line-height: 1.6; margin-top: 12px;
+}
+
+.doc-step {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.doc-step:last-child { border-bottom: none; }
+.doc-step-num {
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: var(--navy); color: white;
+  border-radius: 50%; font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.doc-step-content { flex: 1; }
+.doc-step-title { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 3px; }
+.doc-step-desc { font-size: 12px; color: var(--text-muted); }
+
+.heatmap-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 12px; }
+.heatmap-cell { aspect-ratio: 1; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; cursor: pointer; transition: transform var(--transition); padding: 4px; text-align: center; }
+.heatmap-cell:hover { transform: scale(1.1); z-index: 1; }
+
+/* ==========================================
+   EXPORT BAR
+   ========================================== */
+.export-bar { background: var(--surface); border-radius: var(--radius); padding: 14px 20px; box-shadow: var(--shadow); margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.export-label { font-size: 13px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 6px; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .main { padding: 16px 14px; }
+  .header-top { padding: 12px 16px; }
+  .nav-tabs { padding: 0 16px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .formula-grid { grid-template-columns: 1fr; }
+}
+
+/* ANIMATIONS */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeInUp .4s ease forwards; }
+.stagger > * { opacity: 0; animation: fadeInUp .4s ease forwards; }
+.stagger > *:nth-child(1) { animation-delay: .05s; }
+.stagger > *:nth-child(2) { animation-delay: .1s; }
+.stagger > *:nth-child(3) { animation-delay: .15s; }
+.stagger > *:nth-child(4) { animation-delay: .2s; }
+.stagger > *:nth-child(5) { animation-delay: .25s; }
+.stagger > *:nth-child(6) { animation-delay: .3s; }
+
+/* TOOLTIP */
+/* Tooltip: gestionado por JS con position:fixed para no ser recortado por overflow:hidden */
+[data-tip] { cursor: help; }
+#global-tooltip {
+  position: fixed; z-index: 9999;
+  background: var(--navy-dark); color: white;
+  font-size: 11px; font-family: 'Sora', sans-serif;
+  line-height: 1.5; padding: 7px 12px; border-radius: 7px;
+  max-width: 240px; text-align: center; pointer-events: none;
+  display: none; box-shadow: 0 4px 14px rgba(0,0,0,.28);
+}
+
+.heat-legend { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 11px; color: var(--text-muted); }
+.heat-legend-bar { height: 10px; flex: 1; border-radius: 5px; background: linear-gradient(90deg, #e2e8f0, #1e3660); }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOADER ===================== -->
+<div class="loader-overlay" id="loader">
+  <div class="loader-spinner"></div>
+  <div class="loader-text">Procesando datos KOHA</div>
+  <div class="loader-sub" id="loaderSub">Leyendo archivo…</div>
+  <div class="loader-progress-wrap"><div class="loader-progress-bar" id="loaderProgress"></div></div>
+</div>
+
+<!-- ===================== HEADER ===================== -->
+<header class="app-header">
+  <div class="header-top">
+    <div class="header-brand">
+      <div class="brand-icon">📊</div>
+      <div class="brand-text">
+        <div class="brand-title">Analítica Bibliotecaria · PUCV</div>
+        <div class="brand-sub">Sistema de inteligencia para colecciones KOHA · v2025.2</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Sin datos cargados</span>
+    </div>
+  </div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-tab="carga">📂 Carga de datos</button>
+    <button class="nav-tab" data-tab="dashboard">📊 Dashboard <span class="tab-badge" id="badge-dashboard">✓</span></button>
+    <button class="nav-tab" data-tab="circulacion">📈 Circulación <span class="tab-badge" id="badge-circulacion">✓</span></button>
+    <button class="nav-tab" data-tab="coleccion">📚 Colección <span class="tab-badge" id="badge-coleccion">✓</span></button>
+    <button class="nav-tab" data-tab="descarte">🗑️ Descarte <span class="tab-badge" id="badge-descarte">✓</span></button>
+    <button class="nav-tab" data-tab="metodologia">🔬 Metodología</button>
+    <button class="nav-tab" data-tab="documentacion">📖 Documentación</button>
+  </nav>
+</header>
+
+<main class="main">
+
+<!-- ===================== TAB: CARGA ===================== -->
+<div class="tab-panel active" id="tab-carga">
+  <div class="section-header">
+    <div class="section-title">Carga de exportaciones KOHA</div>
+    <div class="btn-group">
+      <button class="btn btn-outline btn-sm" onclick="loadDemoData()">🎲 Cargar datos demo</button>
+      <button class="btn btn-danger btn-sm" onclick="clearAll()">🗑️ Limpiar todo</button>
+    </div>
+  </div>
+
+  <div class="upload-grid">
+    <!-- FIX #1: <label for="..."> hace que TODO el área sea clickeable sin JS adicional -->
+    <label class="upload-card" id="dropCol" for="inputColeccion"
+           ondragover="onDragOver(event,'dropCol')"
+           ondragleave="onDragLeave('dropCol')"
+           ondrop="onDrop(event,'coleccion')">
+      <span class="upload-icon">📚</span>
+      <div class="upload-title">Archivo de Colección</div>
+      <div class="upload-sub">Exportación KOHA con unidad_academica, Topográfico, Autor, Título, Año, Préstamos<br>Formatos: .xlsx · .xls · .csv</div>
+      <input type="file" class="upload-input" id="inputColeccion" accept=".xlsx,.xls,.csv" onchange="onFileSelect(event,'coleccion')">
+      <div class="upload-btn">📁 Seleccionar archivo</div>
+      <div class="upload-file-info" id="infoColeccion">
+        <span>✅</span><span id="infoColText">Cargado</span>
+      </div>
+    </label>
+
+    <label class="upload-card" id="dropPrest" for="inputPrestamos"
+           ondragover="onDragOver(event,'dropPrest')"
+           ondragleave="onDragLeave('dropPrest')"
+           ondrop="onDrop(event,'prestamos')">
+      <span class="upload-icon">🔄</span>
+      <div class="upload-title">Historial de Préstamos</div>
+      <div class="upload-sub">Circulación histórica con Fecha, Carrera, Signatura, Título, unidad_academica<br>Formatos: .xlsx · .xls · .csv</div>
+      <input type="file" class="upload-input" id="inputPrestamos" accept=".xlsx,.xls,.csv" onchange="onFileSelect(event,'prestamos')">
+      <div class="upload-btn">📁 Seleccionar archivo</div>
+      <div class="upload-file-info" id="infoPrestamos">
+        <span>✅</span><span id="infoPrestText">Cargado</span>
+      </div>
+    </label>
+  </div>
+
+  <!-- Warnings mejorados -->
+  <div class="warnings-panel" id="warningsPanel" style="display:none">
+    <div class="warnings-title">⚠️ Advertencias de validación</div>
+    <div id="warningsList"></div>
+  </div>
+
+  <!-- Columnas detectadas con confianza (#6) -->
+  <div class="table-card" id="columnsCard" style="display:none">
+    <div class="table-header">
+      <span style="font-weight:700;color:var(--navy);font-size:13px;">🔍 Columnas detectadas y normalizadas</span>
+      <span style="font-size:11px;color:var(--text-muted)">Confianza de mapeo automático</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Archivo</th><th>Campo Original</th><th>Campo Normalizado</th><th>Método</th><th>Confianza</th></tr>
+        </thead>
+        <tbody id="columnsMappingBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Botón procesar -->
+  <div style="text-align:center; margin-top:24px; display:none;" id="processBtn">
+    <button class="btn btn-primary" onclick="processData()" style="padding:12px 32px;font-size:15px;">
+      ⚡ Procesar y generar análisis
+    </button>
+    <p style="margin-top:10px;font-size:12px;color:var(--text-muted);">
+      Se calcularán todos los indicadores bibliotecarios estandarizados
+    </p>
+  </div>
+</div><!-- /tab-carga -->
+
+<!-- ===================== TAB: DASHBOARD ===================== -->
+<div class="tab-panel" id="tab-dashboard">
+  <div id="dashboardEmpty" class="empty-state">
+    <div class="empty-icon">📊</div>
+    <div class="empty-title">Dashboard no disponible</div>
+    <div class="empty-sub">Cargue los archivos KOHA y procese los datos para ver el dashboard completo</div>
+  </div>
+  <div id="dashboardContent" style="display:none">
+    <div class="export-bar">
+      <div class="export-label">📊 Dashboard de indicadores · <span id="dashFecha" style="font-weight:400;color:var(--text-muted)"></span></div>
+      <div class="btn-group">
+        <button class="btn btn-outline btn-sm" onclick="exportExcel()">📥 Exportar Excel</button>
+        <button class="btn btn-primary btn-sm" onclick="exportPDF()">📄 Exportar PDF</button>
+      </div>
+    </div>
+    <div class="section-header"><div class="section-title">Indicadores Clave (KPI)</div></div>
+    <div class="kpi-grid stagger" id="kpiGrid"></div>
+    <div class="section-header"><div class="section-title">Alertas automáticas</div></div>
+    <div id="alertasContainer" style="margin-bottom:24px;"></div>
+    <div class="section-header"><div class="section-title">Gráficos de análisis</div></div>
+    <div class="charts-grid">
+      <div class="chart-card chart-card-full">
+        <div class="chart-title">📈 Evolución anual de circulación</div>
+        <div class="chart-canvas-wrap"><canvas id="chartEvolucion"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🥧 Colección usada vs. no usada</div>
+        <div class="chart-canvas-wrap"><canvas id="chartUso"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🏛️ Préstamos por área Dewey</div>
+        <div class="chart-canvas-wrap"><canvas id="chartDewey"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🎓 Préstamos por carrera</div>
+        <div class="chart-canvas-wrap"><canvas id="chartCarrera"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">👥 Préstamos por tipo de usuario</div>
+        <div class="chart-canvas-wrap"><canvas id="chartUsuario"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-card" style="margin-bottom:20px;">
+      <div class="chart-title">🗺️ Mapa de calor — Intensidad de uso por clasificación Dewey</div>
+      <div id="heatmapContainer"></div>
+      <div class="heat-legend">
+        <span>Sin uso</span><div class="heat-legend-bar"></div><span>Alta demanda</span>
+      </div>
+    </div>
+  </div>
+</div><!-- /tab-dashboard -->
+
+<!-- ===================== TAB: CIRCULACIÓN ===================== -->
+<div class="tab-panel" id="tab-circulacion">
+  <div id="circEmpty" class="empty-state">
+    <div class="empty-icon">📈</div>
+    <div class="empty-title">Sin datos de circulación</div>
+    <div class="empty-sub">Cargue el historial de préstamos para ver el análisis</div>
+  </div>
+  <div id="circContent" style="display:none">
+    <!-- MEJORAS #3 #4 #5: filtros con rango de años activos -->
+    <div class="filters-bar">
+      <div class="filter-group">
+        <div class="filter-label">Carrera</div>
+        <select id="filtCarrera" onchange="applyFilters()"><option value="">Todas</option></select>
+      </div>
+      <!-- Rango de años reemplaza selector único -->
+      <div class="filter-group-range">
+        <div class="filter-label">Rango de años</div>
+        <div class="filter-range-row">
+          <select id="filtAnioDesde" onchange="applyFilters()" style="min-width:80px"><option value="">Desde</option></select>
+          <span class="filter-range-sep">→</span>
+          <select id="filtAnioHasta" onchange="applyFilters()" style="min-width:80px"><option value="">Hasta</option></select>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Tipo de usuario</div>
+        <select id="filtTipoUsuario" onchange="applyFilters()"><option value="">Todos</option></select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Área Dewey</div>
+        <select id="filtDewey" onchange="applyFilters()"><option value="">Todas</option></select>
+      </div>
+      <button class="filter-reset-btn" onclick="resetCircFilters()" title="Limpiar filtros">↺ Limpiar</button>
+      <div class="filter-active-badge" id="circFilterBadge" style="display:none">🔽 Filtro activo</div>
+    </div>
+
+    <div class="kpi-grid stagger" id="kpiCirc"></div>
+
+    <div class="section-header"><div class="section-title">🏆 Top 20 títulos con mayor circulación</div></div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Título</th><th>Autor</th><th>Dewey</th><th>Préstamos</th><th>Estado</th></tr></thead>
+          <tbody id="topTitulosBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-header"><div class="section-title">📊 Circulación anual por área temática</div></div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Área Dewey</th><th>2020</th><th>2021</th><th>2022</th><th>2023</th><th>2024</th><th>2025</th><th>Total</th><th>Tendencia</th></tr></thead>
+          <tbody id="circAnualBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div><!-- /tab-circulacion -->
+
+<!-- ===================== TAB: COLECCIÓN ===================== -->
+<div class="tab-panel" id="tab-coleccion">
+  <div id="colEmpty" class="empty-state">
+    <div class="empty-icon">📚</div>
+    <div class="empty-title">Sin datos de colección</div>
+    <div class="empty-sub">Cargue el archivo de colección KOHA para ver el análisis</div>
+  </div>
+  <div id="colContent" style="display:none">
+    <!-- MEJORAS #2 #4 #5: filtros colección con año activo -->
+    <div class="filters-bar">
+      <div class="filter-group">
+        <div class="filter-label">Área Dewey</div>
+        <select id="filtColDewey" onchange="applyColFilters()"><option value="">Todas</option></select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Tipo de recurso</div>
+        <select id="filtTipoRecurso" onchange="applyColFilters()"><option value="">Todos</option></select>
+      </div>
+      <!-- MEJORA #2: rango de año publicación en colección -->
+      <div class="filter-group-range">
+        <div class="filter-label">Año publicación</div>
+        <div class="filter-range-row">
+          <select id="filtColAnioDesde" onchange="applyColFilters()" style="min-width:80px"><option value="">Desde</option></select>
+          <span class="filter-range-sep">→</span>
+          <select id="filtColAnioHasta" onchange="applyColFilters()" style="min-width:80px"><option value="">Hasta</option></select>
+        </div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Estado</div>
+        <select id="filtEstado" onchange="applyColFilters()">
+          <option value="">Todos</option>
+          <option value="activo">Con circulación</option>
+          <option value="inactivo">Sin circulación</option>
+        </select>
+      </div>
+      <button class="filter-reset-btn" onclick="resetColFilters()" title="Limpiar filtros">↺ Limpiar</button>
+      <div class="filter-active-badge" id="colFilterBadge" style="display:none">🔽 Filtro activo</div>
+    </div>
+
+    <div class="kpi-grid stagger" id="kpiCol"></div>
+
+    <div class="section-header"><div class="section-title">🔴 Obsolescencia por área Dewey</div></div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Área Dewey</th><th>Total títulos</th><th>Sin circulación</th><th>Obsolescencia %</th><th>Tasa uso</th><th>Semáforo</th></tr></thead>
+          <tbody id="obsolescenciaBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-header"><div class="section-title">📭 Títulos sin circulación registrada</div></div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Topográfico</th><th>Título</th><th>Autor</th><th>Año pub.</th><th>Antigüedad</th><th>Índice descarte</th></tr></thead>
+          <tbody id="sinCircBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div><!-- /tab-coleccion -->
+
+<!-- ===================== TAB: DESCARTE ===================== -->
+<div class="tab-panel" id="tab-descarte">
+  <div id="descEmpty" class="empty-state">
+    <div class="empty-icon">🗑️</div>
+    <div class="empty-title">Sin datos para análisis de descarte</div>
+    <div class="empty-sub">Cargue la colección para calcular los títulos sin circulación</div>
+  </div>
+  <div id="descContent" style="display:none">
+
+    <!-- Aviso metodológico -->
+    <div class="alert alert-info" style="margin-bottom:20px;">
+      <span class="alert-icon">ℹ️</span>
+      <div>
+        <strong>Criterio de evaluación:</strong> Se identifican títulos sin circulación registrada en los <strong>últimos 5 años</strong>.
+        El año de publicación se muestra solo como referencia — un libro antiguo puede seguir siendo valioso y vigente si mantiene uso activo.
+        Esta lista es un <em>insumo</em> para la decisión bibliotecológica, no una orden de descarte automático.
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid stagger" id="kpiDesc"></div>
+
+    <!-- Gráficos -->
+    <div class="charts-grid" style="margin-bottom:20px;">
+      <div class="chart-card">
+        <div class="chart-title">⏱️ Títulos por años sin circulación</div>
+        <div class="chart-canvas-wrap"><canvas id="chartDescarte"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">🏛️ Sin uso ≥5 años por área Dewey</div>
+        <div class="chart-canvas-wrap"><canvas id="chartAntiguedad"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Filtros tabla -->
+    <div class="filters-bar" style="margin-bottom:16px;">
+      <div class="filter-group">
+        <div class="filter-label">Mostrar</div>
+        <select id="filtDescVista" onchange="applyDescFiltros()">
+          <option value="5mas">Sin circulación ≥5 años</option>
+          <option value="3a4">Sin circulación 3–4 años</option>
+          <option value="todos">Todos sin circulación</option>
+          <option value="sinreg">Sin registro alguno</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Área Dewey</div>
+        <select id="filtDescDewey" onchange="applyDescFiltros()"><option value="">Todas</option></select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Ordenar por</div>
+        <select id="filtDescOrden" onchange="applyDescFiltros()">
+          <option value="sinuso">Años sin uso (mayor primero)</option>
+          <option value="prestamos">Total préstamos (menor primero)</option>
+          <option value="aniopub">Año publicación</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:flex-end;">
+        <button class="btn btn-reset btn-sm" onclick="exportDescarteExcel()">📥 Exportar lista</button>
+      </div>
+    </div>
+
+    <!-- Tabla principal -->
+    <div class="section-header">
+      <div class="section-title">📋 Títulos sin circulación en los últimos 5 años</div>
+      <span id="descTotalLabel" style="font-size:12px;color:var(--text-muted);"></span>
+    </div>
+    <div class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Topográfico</th>
+              <th>Título</th>
+              <th>Autor</th>
+              <th>Área Dewey</th>
+              <th title="Solo referencial — la antigüedad no determina el descarte">Año pub. ℹ</th>
+              <th>Último préstamo</th>
+              <th>Años sin uso</th>
+              <th>Total prést. histórico</th>
+              <th>Estado</th>
+              <th>unidad_academica</th>
+            </tr>
+          </thead>
+          <tbody id="descarteCriticoBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Nota informativa sobre antigüedad -->
+    <div style="background:var(--surface2);border-radius:var(--radius);padding:16px 20px;border-left:4px solid var(--gold);font-size:12px;color:var(--text-muted);">
+      <strong style="color:var(--navy);">📌 Sobre el año de publicación:</strong>
+      Un libro publicado hace décadas puede mantener plena vigencia académica (manuales clásicos, obras de referencia, textos fundacionales de una disciplina).
+      El criterio de evaluación para descarte es la <strong>ausencia de circulación sostenida en el tiempo</strong>, no la edad del material.
+      Se recomienda verificar con los docentes la pertinencia curricular antes de cualquier decisión de descarte.
+    </div>
+
+  </div>
+</div><!-- /tab-descarte -->
+
+<!-- ===================== TAB: METODOLOGÍA ===================== -->
+<div class="tab-panel" id="tab-metodologia">
+  <div class="methodology-section">
+    <div class="method-header">
+      <div class="method-icon">🔬</div>
+      <div class="method-title-block">
+        <h2>Transparencia metodológica</h2>
+        <p>Fórmulas oficiales, variables y criterios de interpretación utilizados en el análisis</p>
+      </div>
+    </div>
+    <div class="alert alert-info" style="margin-bottom:20px;">
+      <span class="alert-icon">ℹ️</span>
+      <div>Este sistema implementa indicadores estandarizados para análisis bibliotecario universitario. Todos los cálculos se realizan en tiempo real sobre los datos exportados desde KOHA ILS. Los resultados deben interpretarse en contexto institucional y no sustituyen el criterio bibliotecológico profesional.</div>
+    </div>
+    <div class="formula-grid" id="formulaGrid"></div>
+    <div style="margin-top:24px;">
+      <div class="section-title" style="margin-bottom:16px;">🗂️ Extracción automática de Dewey</div>
+      <div class="methodology-section" style="padding:16px; box-shadow:none; border:1px solid var(--border);">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">La aplicación extrae automáticamente el número Dewey desde el Topográfico usando expresiones regulares con <strong>fuzzy matching (distancia Levenshtein)</strong> para tolerancia tipográfica:</p>
+        <div class="formula-box" style="display:inline-block;width:100%;margin-bottom:12px;">
+          const dewey = topografico.match(/^\d+(\.\d+)?/);<br>
+          // "519.4 CHA 1987" → Dewey: 519.4 | Área: Ciencias puras<br>
+          // Fuzzy: levenshtein("prestamos","préstamos") = 1 → confianza alta
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-top:12px;">
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">000</strong><br>Generalidades</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">100</strong><br>Filosofía y Psicología</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">200</strong><br>Religión</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">300</strong><br>Ciencias Sociales</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">400</strong><br>Lengua y Lingüística</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">500</strong><br>Ciencias Puras</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">600</strong><br>Tecnología y C. Aplicadas</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">700</strong><br>Arte y Recreación</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">800</strong><br>Literatura y Retórica</div>
+          <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;"><strong style="color:var(--navy);">900</strong><br>Historia y Geografía</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:20px;padding:14px 16px;background:var(--surface2);border-radius:var(--radius);font-size:12px;color:var(--text-muted);">
+      <strong style="color:var(--navy);">Sistema:</strong> Analítica Bibliotecaria PUCV ·
+      <strong style="color:var(--navy);">Compatible con:</strong> KOHA ILS (.xlsx, .xls, .csv) ·
+      <strong style="color:var(--navy);">Indicadores:</strong> ISO 11620:2014 ·
+      <strong style="color:var(--navy);">Versión:</strong> 2025.2
+    </div>
+  </div>
+</div><!-- /tab-metodologia -->
+
+<!-- ===================== TAB: DOCUMENTACIÓN ===================== -->
+<div class="tab-panel" id="tab-documentacion">
+
+  <!-- ── ENCABEZADO ── -->
+  <div class="doc-section">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid var(--border);">
+      <div style="width:52px;height:52px;background:linear-gradient(135deg,var(--navy),var(--navy-light));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">📖</div>
+      <div>
+        <div style="font-size:19px;font-weight:800;color:var(--navy);">Documentación técnica · Analítica Bibliotecaria PUCV</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Guía de uso, requisitos de archivos e interpretación de indicadores — Versión 2025.3</div>
+      </div>
+    </div>
+    <div class="alert alert-info" style="margin-bottom:0;">
+      <span class="alert-icon">ℹ️</span>
+      <div>Esta documentación describe los requisitos de los archivos de entrada, el funcionamiento del sistema de detección de columnas, las fórmulas de cada indicador y los criterios de evaluación de la colección. Es el respaldo metodológico del análisis generado.</div>
+    </div>
+  </div>
+
+  <!-- ── FLUJO DE USO ── -->
+  <div class="doc-section">
+    <div class="doc-section-title">🔄 Flujo de trabajo</div>
+    <div class="doc-section-sub">Pasos para obtener el análisis completo desde KOHA ILS</div>
+    <div class="doc-step">
+      <div class="doc-step-num">1</div>
+      <div class="doc-step-content">
+        <div class="doc-step-title">Exportar desde KOHA ILS</div>
+        <div class="doc-step-desc">En el módulo de Informes de KOHA, genere dos exportaciones: (a) <strong>inventario de la colección</strong> con datos bibliográficos y total de préstamos, y (b) <strong>historial de circulación</strong> con cada transacción de préstamo del período a analizar (recomendado: 2020 en adelante). Guardar en formato <strong>.xlsx</strong> o <strong>.csv</strong>.</div>
+      </div>
+    </div>
+    <div class="doc-step">
+      <div class="doc-step-num">2</div>
+      <div class="doc-step-content">
+        <div class="doc-step-title">Cargar los archivos en la pestaña "Carga de datos"</div>
+        <div class="doc-step-desc">Arrastre o seleccione cada archivo en la zona correspondiente. El sistema detecta automáticamente las columnas aunque tengan nombres distintos a los canónicos (acepta variantes con o sin tilde, en mayúsculas, con guiones bajos, etc.). Se mostrará una tabla de columnas detectadas con su nivel de confianza.</div>
+      </div>
+    </div>
+    <div class="doc-step">
+      <div class="doc-step-num">3</div>
+      <div class="doc-step-content">
+        <div class="doc-step-title">Revisar advertencias de validación</div>
+        <div class="doc-step-desc">Si el sistema no puede identificar alguna columna clave, aparecerá una advertencia. Verifique que el archivo exportado contenga las columnas indicadas en la sección siguiente. Los campos opcionales no generan advertencia.</div>
+      </div>
+    </div>
+    <div class="doc-step">
+      <div class="doc-step-num">4</div>
+      <div class="doc-step-content">
+        <div class="doc-step-title">Hacer clic en "Procesar y generar análisis"</div>
+        <div class="doc-step-desc">El motor calcula todos los indicadores en tiempo real: tasas de circulación, obsolescencia, rotación, tendencias por año, distribución Dewey, años sin uso por título. El proceso es local — ningún dato sale de su navegador.</div>
+      </div>
+    </div>
+    <div class="doc-step">
+      <div class="doc-step-num">5</div>
+      <div class="doc-step-content">
+        <div class="doc-step-title">Explorar las pestañas de análisis y exportar</div>
+        <div class="doc-step-desc">Cada pestaña (Dashboard, Circulación, Colección, Descarte) tiene filtros independientes. Los resultados se pueden exportar a <strong>Excel</strong> (con múltiples hojas) o <strong>PDF</strong> desde el Dashboard, y el listado de descarte tiene su propio botón de exportación.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── REQUISITOS DE ARCHIVOS ── -->
+  <div class="doc-section">
+    <div class="doc-section-title">📁 Requisitos de archivos KOHA</div>
+    <div class="doc-section-sub">Columnas necesarias en cada exportación y nombres alternativos aceptados</div>
+
+    <div class="doc-file-grid">
+
+      <!-- COLECCIÓN -->
+      <div class="doc-file-card">
+        <div class="doc-file-header">
+          <div class="doc-file-icon">📚</div>
+          <div>
+            <div class="doc-file-name">Archivo de Colección</div>
+            <div class="doc-file-desc">Inventario bibliográfico con conteo de préstamos</div>
+          </div>
+        </div>
+        <table class="doc-col-table">
+          <thead>
+            <tr><th style="width:28%">Campo</th><th style="width:12%">Estado</th><th>Función</th><th>Nombres aceptados en KOHA</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Topográfico</strong></td>
+              <td><span class="col-req">CLAVE</span></td>
+              <td style="font-size:11px">Código de clasificación. Se extrae Dewey, Cutter y año automáticamente</td>
+              <td><div class="alias-list">Topografico · Topográfico · Signatura · Call Number · Callnumber · Codigo · Clasific</div></td>
+            </tr>
+            <tr>
+              <td><strong>Título</strong></td>
+              <td><span class="col-req">CLAVE</span></td>
+              <td style="font-size:11px">Se muestra en tablas y exportaciones</td>
+              <td><div class="alias-list">Titulo · Título · Title · Nombre</div></td>
+            </tr>
+            <tr>
+              <td><strong>Autor</strong></td>
+              <td><span class="col-req">CLAVE</span></td>
+              <td style="font-size:11px">Identificación del registro</td>
+              <td><div class="alias-list">Autor · Author · Autores · Creador</div></td>
+            </tr>
+            <tr>
+              <td><strong>Préstamos</strong></td>
+              <td><span class="col-req">CLAVE</span></td>
+              <td style="font-size:11px">Total histórico de préstamos por título. Base para TC, CU y OB</td>
+              <td><div class="alias-list">Préstamos · Prestamos · Loans · Checkouts · Issues · Total Prestamos · Cantidad Préstamos</div></td>
+            </tr>
+            <tr>
+              <td><strong>Año</strong></td>
+              <td><span class="col-opt">RECOM.</span></td>
+              <td style="font-size:11px">Año de publicación. Se muestra como dato informativo en Descarte</td>
+              <td><div class="alias-list">Año · Anio · Year · Año Publicación · Pub_year</div></td>
+            </tr>
+            <tr>
+              <td><strong>Tipo de recurso</strong></td>
+              <td><span class="col-opt">OPCIONAL</span></td>
+              <td style="font-size:11px">Permite filtrar por tipo de material en la pestaña Colección</td>
+              <td><div class="alias-list">Tipo de Recurso · Item Type · Itemtype · Material · Tipo_recurso</div></td>
+            </tr>
+            <tr>
+              <td><strong>Estado de pérdida</strong></td>
+              <td><span class="col-opt">OPCIONAL</span></td>
+              <td style="font-size:11px">Para identificar material perdido o dado de baja</td>
+              <td><div class="alias-list">Estado de Perdida · Lost · Estado Perdida · Perdido</div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="padding:12px 16px;background:var(--surface2);">
+          <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px;">Formatos aceptados</div>
+          <div class="doc-formats">
+            <span class="doc-format-badge">.xlsx</span>
+            <span class="doc-format-badge">.xls</span>
+            <span class="doc-format-badge">.csv (UTF-8)</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">El separador CSV se detecta automáticamente: coma, punto y coma o tabulación.</div>
+        </div>
+      </div>
+
+      <!-- PRÉSTAMOS -->
+      <div class="doc-file-card">
+        <div class="doc-file-header">
+          <div class="doc-file-icon">🔄</div>
+          <div>
+            <div class="doc-file-name">Historial de Préstamos</div>
+            <div class="doc-file-desc">Registro de circulación transacción por transacción</div>
+          </div>
+        </div>
+        <table class="doc-col-table">
+          <thead>
+            <tr><th style="width:28%">Campo</th><th style="width:12%">Estado</th><th>Función</th><th>Nombres aceptados en KOHA</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Fecha</strong></td>
+              <td><span class="col-req">CLAVE</span></td>
+              <td style="font-size:11px">Fecha del préstamo. Se usa para calcular el año y detectar el último uso por título</td>
+              <td><div class="alias-list">Fecha · Date · Fecha_prestamo · Issue Date · Issuedate · Checkout Date</div></td>
+            </tr>
+            <tr>
+              <td><strong>Topográfico</strong></td>
+              <td><span class="col-req">CLAVE</span></td>
+              <td style="font-size:11px">Permite cruzar con la colección para calcular el <strong>último año de uso real</strong> por título (criterio de descarte)</td>
+              <td><div class="alias-list">Topografico · Signatura · Call Number · Codigo</div></td>
+            </tr>
+            <tr>
+              <td><strong>Carrera</strong></td>
+              <td><span class="col-req">CLAVE</span></td>
+              <td style="font-size:11px">Distribución de préstamos por programa académico</td>
+              <td><div class="alias-list">Carrera · Programme · Program · Programa · Nombre Carrera</div></td>
+            </tr>
+            <tr>
+              <td><strong>Tipo de usuario</strong></td>
+              <td><span class="col-rec">RECOM.</span></td>
+              <td style="font-size:11px">Pregrado, Postgrado, Académico, etc. Gráfico de distribución de usuarios</td>
+              <td><div class="alias-list">Tipo de Usuario · Patron Type · Patrontype · Categorycode · Borrower Type</div></td>
+            </tr>
+            <tr>
+              <td><strong>Título</strong></td>
+              <td><span class="col-opt">OPCIONAL</span></td>
+              <td style="font-size:11px">Identificación del ítem prestado en tablas de circulación</td>
+              <td><div class="alias-list">Titulo · Title</div></td>
+            </tr>
+            <tr>
+              <td><strong>Autor</strong></td>
+              <td><span class="col-opt">OPCIONAL</span></td>
+              <td style="font-size:11px">Identificación complementaria</td>
+              <td><div class="alias-list">Autor · Author</div></td>
+            </tr>
+            <tr>
+              <td><strong>Tipo de recurso</strong></td>
+              <td><span class="col-opt">OPCIONAL</span></td>
+              <td style="font-size:11px">Tipo de material prestado (libro, revista, tesis, audiovisual, etc.). Permite filtrar circulación por tipo de ítem</td>
+              <td><div class="alias-list">Tipo de Recurso · Item Type · Itemtype · Material · Tipo_recurso</div></td>
+            </tr>
+            <tr>
+              <td><strong>Unidad académica</strong></td>
+              <td><span class="col-opt">OPCIONAL</span></td>
+              <td style="font-size:11px">Biblioteca o sede de origen del préstamo</td>
+              <td><div class="alias-list">Unidad Academica · Branch · Library · Biblioteca</div></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="padding:12px 16px;background:var(--surface2);">
+          <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:6px;">Formatos de fecha aceptados</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted);line-height:2;">
+            DD/MM/YYYY &nbsp;·&nbsp; DD-MM-YYYY &nbsp;·&nbsp; YYYY-MM-DD &nbsp;·&nbsp; Número serial Excel
+          </div>
+        </div>
+      </div>
+    </div><!-- /doc-file-grid -->
+
+    <!-- Nota sobre detección de columnas -->
+    <div class="doc-note" style="margin-top:16px;">
+      <strong>🔍 Detección automática de columnas:</strong> El sistema normaliza cada encabezado eliminando tildes, mayúsculas y caracteres especiales, luego compara con una lista de aliases para cada campo. Se asigna una puntuación de confianza: <strong>Exacta (100)</strong> · <strong>Prefijo (80)</strong> · <strong>Contiene (60)</strong> · <strong>Parcial (40)</strong>. La columna detectada con mayor puntuación se usa para ese campo. Si ninguna supera 40, el campo se marca como no encontrado y se genera una advertencia.
+    </div>
+  </div>
+
+  <!-- ── INDICADORES Y FÓRMULAS ── -->
+  <div class="doc-section">
+    <div class="doc-section-title">📐 Indicadores calculados y sus fórmulas</div>
+    <div class="doc-section-sub">Definición, variables, fórmula y criterios de interpretación de cada métrica — basados en ISO 11620:2014</div>
+
+    <div class="doc-indicator-grid">
+
+      <div class="doc-ind-card">
+        <div class="doc-ind-header"><div class="doc-ind-num">1</div><div class="doc-ind-name">Tasa de Circulación (TC)</div></div>
+        <div class="doc-ind-body">
+          <div class="doc-ind-obj">Mide cuántas veces circula en promedio cada ejemplar de la colección.</div>
+          <div class="doc-formula-box">TC = P ÷ E</div>
+          <div class="doc-vars">
+            <span><strong>P</strong> = Total de préstamos registrados en el período</span>
+            <span><strong>E</strong> = Total de ejemplares / títulos en la colección</span>
+          </div>
+          <div class="doc-interp">TC &lt; 1 → Subutilización general &nbsp;|&nbsp; TC 1–3 → Uso medio &nbsp;|&nbsp; TC &gt; 3 → Alta circulación</div>
+          <span class="doc-source-tag">ISO 11620 · B.2.2.1</span>
+        </div>
+      </div>
+
+      <div class="doc-ind-card">
+        <div class="doc-ind-header"><div class="doc-ind-num">2</div><div class="doc-ind-name">Colección Usada — CU (%)</div></div>
+        <div class="doc-ind-body">
+          <div class="doc-ind-obj">Porcentaje de títulos que registraron al menos un préstamo en el período analizado.</div>
+          <div class="doc-formula-box">CU = (TU ÷ TT) × 100</div>
+          <div class="doc-vars">
+            <span><strong>TU</strong> = Títulos con al menos 1 préstamo registrado</span>
+            <span><strong>TT</strong> = Total de títulos en la colección</span>
+          </div>
+          <div class="doc-interp">CU &lt; 30% → Colección con alta proporción inactiva &nbsp;|&nbsp; 30–60% → Normal &nbsp;|&nbsp; &gt;60% → Buena cobertura</div>
+          <span class="doc-source-tag">ISO 11620 · B.2.2.3</span>
+        </div>
+      </div>
+
+      <div class="doc-ind-card">
+        <div class="doc-ind-header"><div class="doc-ind-num">3</div><div class="doc-ind-name">Índice de Rotación (IR)</div></div>
+        <div class="doc-ind-body">
+          <div class="doc-ind-obj">Intensidad de uso de los ejemplares: cuántos préstamos genera cada unidad disponible.</div>
+          <div class="doc-formula-box">IR = P ÷ ED</div>
+          <div class="doc-vars">
+            <span><strong>P</strong> = Total préstamos del período</span>
+            <span><strong>ED</strong> = Ejemplares disponibles (no dados de baja)</span>
+          </div>
+          <div class="doc-interp">Cuanto mayor, más eficiente es el aprovechamiento del fondo. Comparar entre áreas Dewey para detectar desequilibrios.</div>
+          <span class="doc-source-tag">IFLA · Colección universitaria</span>
+        </div>
+      </div>
+
+      <div class="doc-ind-card">
+        <div class="doc-ind-header"><div class="doc-ind-num">4</div><div class="doc-ind-name">Obsolescencia — OB (%)</div></div>
+        <div class="doc-ind-body">
+          <div class="doc-ind-obj">Proporción de la colección sin ningún registro de circulación.</div>
+          <div class="doc-formula-box">OB = (TSU ÷ TT) × 100</div>
+          <div class="doc-vars">
+            <span><strong>TSU</strong> = Títulos sin uso (0 préstamos registrados)</span>
+            <span><strong>TT</strong> = Total de títulos</span>
+          </div>
+          <div class="doc-interp">OB &lt; 30% → Aceptable &nbsp;|&nbsp; 30–50% → Requiere revisión &nbsp;|&nbsp; &gt;50% → Proceso de evaluación urgente</div>
+          <span class="doc-source-tag">ISO 11620 · B.2.2.4</span>
+        </div>
+      </div>
+
+      <div class="doc-ind-card">
+        <div class="doc-ind-header"><div class="doc-ind-num">5</div><div class="doc-ind-name">Uso por Área Disciplinar (UA)</div></div>
+        <div class="doc-ind-body">
+          <div class="doc-ind-obj">Tasa de circulación desagregada por área de clasificación Dewey para detectar desequilibrios.</div>
+          <div class="doc-formula-box">UA = P<sub>área</sub> ÷ E<sub>área</sub></div>
+          <div class="doc-vars">
+            <span><strong>P<sub>área</sub></strong> = Préstamos del área Dewey en el período</span>
+            <span><strong>E<sub>área</sub></strong> = Ejemplares del área Dewey</span>
+          </div>
+          <div class="doc-interp">Áreas con UA bajo respecto al promedio general son candidatas a revisión curricular o ajuste de adquisiciones.</div>
+          <span class="doc-source-tag">IFLA · Evaluación de colecciones</span>
+        </div>
+      </div>
+
+      <div class="doc-ind-card">
+        <div class="doc-ind-header"><div class="doc-ind-num">6</div><div class="doc-ind-name">Crecimiento de Circulación (GC)</div></div>
+        <div class="doc-ind-body">
+          <div class="doc-ind-obj">Variación porcentual de préstamos entre dos períodos anuales consecutivos.</div>
+          <div class="doc-formula-box">GC = ((P<sub>actual</sub> − P<sub>previo</sub>) ÷ P<sub>previo</sub>) × 100</div>
+          <div class="doc-vars">
+            <span><strong>P<sub>actual</sub></strong> = Préstamos del año más reciente</span>
+            <span><strong>P<sub>previo</sub></strong> = Préstamos del año anterior</span>
+          </div>
+          <div class="doc-interp">GC positivo → crecimiento de demanda &nbsp;|&nbsp; GC &lt; −10% → caída significativa que requiere análisis de causas</div>
+          <span class="doc-source-tag">ISO 11620 · Indicador de tendencia</span>
+        </div>
+      </div>
+
+      <div class="doc-ind-card">
+        <div class="doc-ind-header"><div class="doc-ind-num">7</div><div class="doc-ind-name">Cobertura Bibliográfica (CB)</div></div>
+        <div class="doc-ind-body">
+          <div class="doc-ind-obj">Porcentaje de bibliografía curricular requerida que está disponible en la colección.</div>
+          <div class="doc-formula-box">CB = (BD ÷ BS) × 100</div>
+          <div class="doc-vars">
+            <span><strong>BD</strong> = Títulos de bibliografía requerida disponibles en KOHA</span>
+            <span><strong>BS</strong> = Total de títulos en la bibliografía solicitada (malla curricular)</span>
+          </div>
+          <div class="doc-interp">CB &lt; 70% → Brecha crítica de cobertura &nbsp;|&nbsp; 70–90% → Aceptable &nbsp;|&nbsp; &gt;90% → Cobertura óptima</div>
+          <span class="doc-source-tag">CRUCH · Indicadores de acreditación</span>
+        </div>
+      </div>
+
+      <div class="doc-ind-card">
+        <div class="doc-ind-header"><div class="doc-ind-num">8</div><div class="doc-ind-name">Demanda Insatisfecha (DI)</div></div>
+        <div class="doc-ind-body">
+          <div class="doc-ind-obj">Proporción de solicitudes de préstamo que no pudieron ser atendidas por falta de disponibilidad.</div>
+          <div class="doc-formula-box">DI = (RNS ÷ ST) × 100</div>
+          <div class="doc-vars">
+            <span><strong>RNS</strong> = Reservas o solicitudes no satisfechas</span>
+            <span><strong>ST</strong> = Total de solicitudes de préstamo</span>
+          </div>
+          <div class="doc-interp">DI alto en un título indica necesidad de comprar más ejemplares. Cruzar con la tasa de uso del área.</div>
+          <span class="doc-source-tag">ISO 11620 · B.2.2.5</span>
+        </div>
+      </div>
+
+    </div><!-- /doc-indicator-grid -->
+  </div>
+
+  <!-- ── CRITERIO DE DESCARTE ── -->
+  <div class="doc-section">
+    <div class="doc-section-title">🗑️ Criterio de evaluación para descarte</div>
+    <div class="doc-section-sub">Metodología implementada en la pestaña Descarte — fundamentación y alcances</div>
+
+    <div class="doc-descarte-box">
+      <div class="doc-descarte-title">⏱️ Criterio principal: 5 años sin circulación</div>
+      <div class="doc-descarte-body">
+        Un título es <strong>candidato a revisión</strong> cuando no registra ningún préstamo en los últimos <strong>5 años o más</strong>,
+        según el historial de circulación cargado. Este es el único criterio cuantitativo utilizado.
+        La antigüedad de publicación <u>no es criterio</u> de descarte.
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:16px;">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;">Cómo se calcula el "último uso"</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">
+          El sistema cruza el campo <strong>Topográfico</strong> de la colección con el campo <strong>Topográfico</strong> del historial de préstamos,
+          buscando el préstamo más reciente de cada título. Si el historial indica que el último préstamo fue en 2018 y el año actual es 2025,
+          ese título acumula <strong>7 años sin uso</strong>.
+        </div>
+      </div>
+      <div style="background:var(--surface2);border-radius:var(--radius);padding:16px;">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;">Categorías del módulo</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:2;">
+          🔴 <strong>≥ 5 años sin uso</strong> — revisión prioritaria<br>
+          🟡 <strong>3–4 años sin uso</strong> — en seguimiento<br>
+          🟢 <strong>≤ 2 años</strong> — circulación activa<br>
+          🔵 <strong>Sin registro</strong> — nunca prestado
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-note">
+      <strong>⚠️ Sobre el año de publicación:</strong> Una obra publicada hace décadas puede mantenerse como referencia académica indispensable
+      (manuales clásicos, textos fundacionales, obras sin edición actualizada superadora). El año de publicación aparece en la tabla de descarte
+      únicamente como <em>dato informativo</em>, no como factor de puntuación. La decisión final de descarte es siempre <strong>criterio
+      bibliotecológico profesional</strong>, contrastado con la malla curricular vigente y el juicio docente.
+    </div>
+
+    <div style="margin-top:16px;padding:14px 16px;background:rgba(30,54,96,.05);border-radius:var(--radius);font-size:12px;color:var(--text-muted);">
+      <strong style="color:var(--navy);">Referencia normativa:</strong> American Library Association — Crew Method (2012) ·
+      IFLA — Guidelines for a Collection Development Policy (2001) ·
+      MUSTIE factors (Misleading, Ugly, Superseded, Trivial, Irrelevant, Elsewhere available) como marco cualitativo complementario.
+    </div>
+  </div>
+
+  <!-- ── CLASIFICACIÓN DEWEY ── -->
+  <div class="doc-section">
+    <div class="doc-section-title">🗂️ Extracción automática de clasificación Dewey</div>
+    <div class="doc-section-sub">El sistema interpreta el campo Topográfico para extraer área, subárea, Cutter y año</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;">Formato esperado del Topográfico</div>
+        <div style="background:var(--navy-dark);border-radius:var(--radius-sm);padding:14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--gold-light);line-height:2.2;">
+          <span style="color:#94a3b8;">// Estructura:</span><br>
+          [Dewey] [Cutter] [Año]<br><br>
+          <span style="color:#94a3b8;">// Ejemplos válidos:</span><br>
+          519.4 RAM 1987<br>
+          658.403 HIL 2001<br>
+          R 610.73 CAS<br>
+          820 JIM 1992
+        </div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:8px;">Campos extraídos automáticamente</div>
+        <table class="doc-col-table">
+          <thead><tr><th>Campo</th><th>Ejemplo</th><th>Uso</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Número Dewey</strong></td><td style="font-family:monospace">519.4</td><td style="font-size:11px">Clasificación temática</td></tr>
+            <tr><td><strong>Centena Dewey</strong></td><td style="font-family:monospace">500</td><td style="font-size:11px">Área principal (heatmap)</td></tr>
+            <tr><td><strong>Área nombre</strong></td><td style="font-family:monospace">Ciencias Puras</td><td style="font-size:11px">Gráficos y tablas</td></tr>
+            <tr><td><strong>Cutter</strong></td><td style="font-family:monospace">RAM</td><td style="font-size:11px">Identificación del autor</td></tr>
+            <tr><td><strong>Año (Cutter)</strong></td><td style="font-family:monospace">1987</td><td style="font-size:11px">Año pub. informativo</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">000</strong><br><span style="color:var(--text-muted)">Generalidades</span></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">100</strong><br><span style="color:var(--text-muted)">Filosofía</span></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">200</strong><br><span style="color:var(--text-muted)">Religión</span></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">300</strong><br><span style="color:var(--text-muted)">Cs. Sociales</span></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">400</strong><br><span style="color:var(--text-muted)">Lingüística</span></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">500</strong><br><span style="color:var(--text-muted)">Cs. Puras</span></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">600</strong><br><span style="color:var(--text-muted)">Tecnología</span></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">700</strong><br><span style="color:var(--text-muted)">Arte</span></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">800</strong><br><span style="color:var(--text-muted)">Literatura</span></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:12px;text-align:center;"><strong style="color:var(--navy);font-size:15px;">900</strong><br><span style="color:var(--text-muted)">Historia</span></div>
+    </div>
+  </div>
+
+  <!-- ── PIE TÉCNICO ── -->
+  <div style="padding:16px 20px;background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);font-size:12px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:16px;align-items:center;">
+    <div><strong style="color:var(--navy);">Sistema:</strong> Analítica Bibliotecaria PUCV</div>
+    <div><strong style="color:var(--navy);">Compatible:</strong> KOHA ILS — Exportaciones .xlsx · .xls · .csv</div>
+    <div><strong style="color:var(--navy);">Norma:</strong> ISO 11620:2014 (Estadísticas de bibliotecas)</div>
+    <div><strong style="color:var(--navy);">Privacidad:</strong> Todo el procesamiento es local — ningún dato se envía a servidores externos</div>
+    <div><strong style="color:var(--navy);">Versión:</strong> 2025.3</div>
+  </div>
+
+</div><!-- /tab-documentacion -->
+
+</main>
+
+<script>
+/* ============================================================
+   MEJORA #6: LEVENSHTEIN — fuzzy matching para columnas
+   ============================================================ */
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, (_, i) => Array.from({length: n+1}, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function fuzzyScore(a, b) {
+  // Retorna 0..1: 1 = idéntico
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  return 1 - levenshtein(a, b) / maxLen;
+}
+
+const COLUMN_ALIASES = {
+  topografico: ['topografico','topográfico','signatura','signature','call number','callnumber','clasif','clasific','codigo','código','cota'],
+  tipo_recurso: ['tipo de recurso','tipo recurso','item type','itemtype','type','tipo_recurso','material','itype'],
+  autor: ['autor','author','autores','creador','authors'],
+  titulo: ['titulo','título','title','nombre','name'],
+  anio: ['año','anio','year','año publicación','año_publicacion','pub_year','anio_publicacion','publicacion','publication year'],
+  prestamos: ['préstamos','prestamos','loans','checkouts','cantidad préstamos','total_prestamos','total prestamos','issues','total issues','numero prestamos','n° prestamos'],
+  estado_perdida: ['estado de perdida','estado_perdida','lost','estado perdida','perdido','itemlost'],
+  fecha: ['fecha','date','fecha_prestamo','issue date','issuedate','checkout date','fecha préstamo','returndate','fecha retiro'],
+  carrera: ['carrera','programme','program','programa','nombre carrera','carrera del usuario','degree'],
+  tipo_usuario: ['tipo de usuario','tipo_usuario','patron type','patrontype','borrower type','categorycode','tipo usuario','category','perfil'],
+  transaccion: ['transaccion','transacción','transaction','tipo transaccion','tipo'],
+  unidad_academica: ['unidad academica','unidad_academica','academic unit','biblioteca','branch','library','sede']
+};
+
+function normalizeHeader(h) {
+  return h?.toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9\s]/g,'').trim() || '';
+}
+
+// MEJORA #6: detectColumn con puntuación de confianza y fuzzy matching
+function detectColumn(headers, field) {
+  const aliases = COLUMN_ALIASES[field] || [field];
+  const normHeaders = headers.map(normalizeHeader);
+  let bestMatch = null;
+  let bestScore = 0;
+  let method = '';
+
+  for (let hi = 0; hi < normHeaders.length; hi++) {
+    const nh = normHeaders[hi];
+    for (const alias of aliases) {
+      const na = normalizeHeader(alias);
+
+      // Exacto
+      if (nh === na) {
+        return { idx: hi, original: headers[hi], score: 1.0, method: 'exacto' };
+      }
+      // Contiene
+      if (nh.includes(na) || na.includes(nh)) {
+        const score = 0.85;
+        if (score > bestScore) { bestScore = score; bestMatch = { idx: hi, original: headers[hi] }; method = 'contiene'; }
+      }
+      // Fuzzy Levenshtein (umbral 0.7)
+      const fs = fuzzyScore(nh, na);
+      if (fs >= 0.7 && fs > bestScore) {
+        bestScore = fs; bestMatch = { idx: hi, original: headers[hi] }; method = 'fuzzy';
+      }
+    }
+  }
+  if (bestMatch) return { ...bestMatch, score: bestScore, method };
+  return null;
+}
+
+function parseKohaFile(rows, type) {
+  if (!rows || rows.length < 2) return { data: [], warnings: [], mapping: [] };
+  const headers = rows[0].map(c => c?.toString() || '');
+  const warnings = [];
+  const mapping = [];
+  const fields = type === 'coleccion'
+    ? ['topografico','tipo_recurso','autor','titulo','anio','prestamos','estado_perdida']
+    : ['fecha','carrera','tipo_usuario','transaccion','topografico','titulo','autor','tipo_recurso','unidad_academica'];
+
+  const colMap = {};
+  for (const field of fields) {
+    const found = detectColumn(headers, field);
+    colMap[field] = found ? found.idx : -1;
+    mapping.push({
+      field,
+      original: found ? found.original : '—',
+      found: found !== null,
+      score: found ? found.score : 0,
+      method: found ? found.method : 'no encontrado'
+    });
+    if (!found) warnings.push(`Campo "${field}" no detectado en ${type}`);
+  }
+
+  // MEJORA #7: procesamiento chunked para archivos grandes
+  const data = [];
+  let emptyRows = 0, badDates = 0, badTopog = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.every(c => !c)) { emptyRows++; continue; }
+    const record = {};
+    for (const [field, idx] of Object.entries(colMap)) {
+      record[field] = idx !== -1 ? (row[idx]?.toString().trim() || '') : '';
+    }
+    if (type === 'prestamos' && record.fecha) {
+      const parsed = parseDate(record.fecha);
+      if (!parsed) { badDates++; record._fechaInvalida = true; }
+      else { record.fecha = parsed; record.anio = parsed.getFullYear(); record.mes = parsed.getMonth()+1; }
+    }
+    const topog = record.topografico || '';
+    if (topog) {
+      const dd = extractDewey(topog);
+      record.dewey = dd.dewey; record.deweycentena = dd.centena;
+      record.deweynombre = dd.nombre; record.cutter = dd.cutter; record.anio_cutter = dd.anio;
+    } else if (type === 'coleccion') { badTopog++; }
+    data.push(record);
+  }
+
+  if (emptyRows > 0) warnings.push(`Se omitieron ${emptyRows} filas vacías`);
+  if (badDates > 0) warnings.push(`${badDates} registros sin fecha válida`);
+  if (badTopog > 0) warnings.push(`${badTopog} registros sin topográfico válido`);
+
+  return { data, warnings, mapping, headers };
+}
+
+function parseDate(val) {
+  if (!val) return null;
+  const str = val.toString().trim();
+  let m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+  m = str.match(/^(\d{4})[\/\-](\d{2})[\/\-](\d{2})/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+  const num = parseFloat(str);
+  if (!isNaN(num) && num > 40000 && num < 55000) {
+    const d = new Date((num - 25569) * 86400 * 1000);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/* ============================================================
+   UTILS
+   ============================================================ */
+const DEWEY_AREAS = {
+  0:'Generalidades',1:'Filosofía y Psicología',2:'Religión',
+  3:'Ciencias Sociales',4:'Lengua y Lingüística',5:'Ciencias Puras',
+  6:'Tecnología',7:'Arte y Recreación',8:'Literatura',9:'Historia y Geografía'
+};
+
+function extractDewey(topog) {
+  const clean = topog.trim();
+  const m = clean.match(/^(\d+(?:\.\d+)?)\s+([A-Za-z]+)?\s*(\d{4})?/);
+  if (!m) return { dewey: null, centena: null, nombre: 'Sin clasificar', cutter: null, anio: null };
+  const dewey = m[1];
+  const centena = Math.floor(parseFloat(dewey) / 100) * 100;
+  return { dewey, centena, nombre: DEWEY_AREAS[Math.floor(centena/100)] || 'Sin clasificar', cutter: m[2]||null, anio: m[3]?parseInt(m[3]):null };
+}
+
+function safeDiv(a, b, decimals=2) { return !b ? 0 : parseFloat((a/b).toFixed(decimals)); }
+function pct(a, b, decimals=1) { return safeDiv(a*100, b, decimals); }
+function round2(n) { return Math.round(n*100)/100; }
+function semaforoHTML(color, label) { return `<div class="semaforo semaforo-${color}"><div class="semaforo-dot"></div>${label}</div>`; }
+
+/* ============================================================
+   ANALYTICS
+   ============================================================ */
+function calcIndicadores(colData, prestData) {
+  const anioActual = new Date().getFullYear();
+  const totalTitulos = colData.length;
+  const totalEjemplares = colData.length;
+  const prestamosEnCol = colData.reduce((s,r) => s + (parseInt(r.prestamos)||0), 0);
+  const titulosUsados = colData.filter(r => parseInt(r.prestamos) > 0).length;
+  const titulosSinUso = totalTitulos - titulosUsados;
+  const totalPrestHist = prestData.length;
+
+  const porAnio = {};
+  for (const p of prestData) {
+    const a = p.anio||(p.fecha?new Date(p.fecha).getFullYear():0);
+    if (a>=2019&&a<=2026) porAnio[a]=(porAnio[a]||0)+1;
+  }
+  const porCarrera = {};
+  for (const p of prestData) { const c=p.carrera||'No especificada'; porCarrera[c]=(porCarrera[c]||0)+1; }
+  const porTipoUsuario = {};
+  for (const p of prestData) { const t=p.tipo_usuario||'No especificado'; porTipoUsuario[t]=(porTipoUsuario[t]||0)+1; }
+  const porDeweyPrest = {};
+  for (const p of prestData) { const d=p.deweynombre||'Sin clasificar'; porDeweyPrest[d]=(porDeweyPrest[d]||0)+1; }
+
+  const colPorDewey = {};
+  for (const c of colData) {
+    const d=c.deweynombre||'Sin clasificar';
+    if (!colPorDewey[d]) colPorDewey[d]={total:0,usados:0,prestamos:0};
+    colPorDewey[d].total++;
+    const pr=parseInt(c.prestamos)||0;
+    colPorDewey[d].prestamos+=pr;
+    if (pr>0) colPorDewey[d].usados++;
+  }
+  for (const [area,cnt] of Object.entries(porDeweyPrest)) {
+    if (!colPorDewey[area]) colPorDewey[area]={total:0,usados:0,prestamos:0};
+    colPorDewey[area].prestamos+=cnt;
+  }
+
+  const TC = safeDiv(prestamosEnCol||totalPrestHist, totalEjemplares);
+  const CU = pct(titulosUsados, totalTitulos);
+  const totalPrest = totalPrestHist||prestamosEnCol;
+  const IR = safeDiv(totalPrest, totalEjemplares);
+  const OB = pct(titulosSinUso, totalTitulos);
+
+  const aniosPub = colData.map(r=>parseInt(r.anio_cutter)||parseInt(r.anio)||null).filter(Boolean);
+  const avgAnio = aniosPub.length ? Math.round(aniosPub.reduce((a,b)=>a+b,0)/aniosPub.length) : null;
+  const edadPromedio = avgAnio ? anioActual-avgAnio : null;
+
+  // -----------------------------------------------
+  // DESCARTE: criterio = 5 años SIN circulación
+  // (no depende del año de publicación)
+  // -----------------------------------------------
+  // Paso 1: construir mapa topográfico → último año de préstamo
+  const ultimoPorTopog = {};
+  for (const p of prestData) {
+    const top = (p.topografico || '').trim();
+    if (!top) continue;
+    const anio = p.anio || (p.fecha instanceof Date ? p.fecha.getFullYear() : null)
+                        || (typeof p.fecha === 'string' ? parseInt(p.fecha) : null);
+    if (!anio || anio < 2000 || anio > anioActual) continue;
+    if (!ultimoPorTopog[top] || anio > ultimoPorTopog[top]) ultimoPorTopog[top] = anio;
+  }
+
+  // Paso 2: calcular años sin uso por libro
+  const descarte = colData.map(r => {
+    const top = (r.topografico || '').trim();
+    const prestamosCol = parseInt(r.prestamos) || 0;
+    const anioPublicacion = parseInt(r.anio_cutter) || parseInt(r.anio) || null; // solo informativo
+
+    // Último préstamo: desde historial (fuente más confiable) o estimado
+    const ultimoAnioHistorial = ultimoPorTopog[top] || null;
+
+    let aniosSinUso = null;
+    let ultimoPrestamo = '—';
+    let fuenteUltimo = null;
+
+    if (ultimoAnioHistorial) {
+      // Tenemos registro en historial de préstamos
+      aniosSinUso = anioActual - ultimoAnioHistorial;
+      ultimoPrestamo = ultimoAnioHistorial;
+      fuenteUltimo = 'historial';
+    } else if (prestamosCol === 0) {
+      // Sin préstamos registrados en ninguna fuente
+      aniosSinUso = null; // desconocido / nunca prestado
+      ultimoPrestamo = 'Sin registro';
+      fuenteUltimo = 'ninguno';
+    } else {
+      // Tiene préstamos en colección pero sin fecha → dato incompleto
+      aniosSinUso = null;
+      ultimoPrestamo = 'Sin fecha';
+      fuenteUltimo = 'sin_fecha';
+    }
+
+    // Clasificación exclusivamente por años sin circulación
+    let estadoUso;
+    if (fuenteUltimo === 'ninguno') {
+      estadoUso = 'Sin registro';
+    } else if (aniosSinUso === null) {
+      estadoUso = 'Sin fecha';
+    } else if (aniosSinUso >= 5) {
+      estadoUso = '≥5 años sin uso';
+    } else if (aniosSinUso >= 3) {
+      estadoUso = '3–4 años sin uso';
+    } else if (aniosSinUso >= 1) {
+      estadoUso = '1–2 años sin uso';
+    } else {
+      estadoUso = 'Activo';
+    }
+
+    return {
+      ...r,
+      anioPublicacion,       // solo informativo
+      ultimoPrestamo,
+      aniosSinUso,
+      estadoUso,
+      fuenteUltimo,
+      totalPrestHistorial: prestamosCol
+      unidad_academica: r.unidad_academica || '—'
+    };
+  });
+
+  const sinUso5mas  = descarte.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 5).length;
+  const sinUso3a4   = descarte.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 3 && r.aniosSinUso < 5).length;
+  const sinRegistro = descarte.filter(r => r.fuenteUltimo === 'ninguno').length;
+  const activos     = descarte.filter(r => r.aniosSinUso !== null && r.aniosSinUso < 3).length;
+
+  // Mantener compatibilidad con campos existentes (dashboard usa descCritico)
+  const descCritico = sinUso5mas;
+  const descAlto    = sinUso3a4;
+  const years=Object.keys(porAnio).map(Number).sort();
+  let crecimiento=null;
+  if (years.length>=2) {
+    const ul=years[years.length-1],an=years[years.length-2];
+    crecimiento=pct(porAnio[ul]-porAnio[an],porAnio[an]);
+  }
+  return { totalTitulos, totalEjemplares, titulosUsados, titulosSinUso, prestamosEnCol, totalPrestHist, totalPrest, TC, CU, IR, OB, porAnio, porCarrera, porTipoUsuario, porDeweyPrest, colPorDewey, descarte, descCritico, descAlto, sinUso5mas, sinUso3a4, sinRegistro, activos, avgAnio, edadPromedio, crecimiento, years };
+}
+
+/* ============================================================
+   CHARTS
+   ============================================================ */
+const CHART_PALETTE = {
+  navy:'rgba(30,54,96,1)', gold:'rgba(201,164,68,1)',
+  colors:['#1e3660','#c9a444','#2a6496','#e8923a','#5c9e6e','#9b4dca','#e05252','#3a8fb5','#d4a843','#4a7c59']
+};
+let charts = {};
+function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+function makeEvolucionChart(porAnio) {
+  destroyChart('evolucion');
+  const ctx=document.getElementById('chartEvolucion').getContext('2d');
+  const years=Object.keys(porAnio).sort();
+  charts.evolucion=new Chart(ctx,{type:'line',data:{labels:years,datasets:[{label:'Préstamos totales',data:years.map(y=>porAnio[y]),borderColor:CHART_PALETTE.navy,backgroundColor:'rgba(30,54,96,0.08)',borderWidth:2.5,pointBackgroundColor:CHART_PALETTE.gold,pointBorderColor:CHART_PALETTE.navy,pointRadius:5,fill:true,tension:0.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index'}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{family:'Sora',size:11}}},x:{grid:{display:false},ticks:{font:{family:'Sora',size:11}}}}}});
+}
+function makeUsoChart(usados, sinUso) {
+  destroyChart('uso');
+  const ctx=document.getElementById('chartUso').getContext('2d');
+  charts.uso=new Chart(ctx,{type:'doughnut',data:{labels:['Con circulación','Sin circulación'],datasets:[{data:[usados,sinUso],backgroundColor:[CHART_PALETTE.navy,'#e2e8f0'],borderColor:['white','white'],borderWidth:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Sora',size:12},padding:16}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.parsed.toLocaleString('es-CL')} títulos`}}},cutout:'65%'}});
+}
+function makeDeweyChart(colPorDewey) {
+  destroyChart('dewey');
+  const ctx=document.getElementById('chartDewey').getContext('2d');
+  const labels=Object.keys(colPorDewey).filter(k=>k!=='Sin clasificar');
+  const sorted=labels.map((l,i)=>({l,v:colPorDewey[l].prestamos})).sort((a,b)=>b.v-a.v).slice(0,10);
+  charts.dewey=new Chart(ctx,{type:'bar',data:{labels:sorted.map(x=>x.l),datasets:[{label:'Préstamos',data:sorted.map(x=>x.v),backgroundColor:CHART_PALETTE.colors,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{family:'Sora',size:11}}},y:{grid:{display:false},ticks:{font:{family:'Sora',size:11}}}}}});
+}
+function makeCarreraChart(porCarrera) {
+  destroyChart('carrera');
+  const ctx=document.getElementById('chartCarrera').getContext('2d');
+  const sorted=Object.entries(porCarrera).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  charts.carrera=new Chart(ctx,{type:'bar',data:{labels:sorted.map(x=>x[0].length>22?x[0].substring(0,20)+'…':x[0]),datasets:[{label:'Préstamos',data:sorted.map(x=>x[1]),backgroundColor:'rgba(30,54,96,0.8)',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{font:{family:'Sora',size:11}}},y:{grid:{display:false},ticks:{font:{family:'Sora',size:10}}}}}});
+}
+function makeUsuarioChart(porTipoUsuario) {
+  destroyChart('usuario');
+  const ctx=document.getElementById('chartUsuario').getContext('2d');
+  const sorted=Object.entries(porTipoUsuario).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  charts.usuario=new Chart(ctx,{type:'pie',data:{labels:sorted.map(x=>x[0]),datasets:[{data:sorted.map(x=>x[1]),backgroundColor:CHART_PALETTE.colors,borderColor:'white',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Sora',size:11},padding:10}}}}});
+}
+/* Gráfico 1: distribución por rango de años sin circulación */
+function makeDescarteChart(descarte) {
+  destroyChart('descarte');
+  const ctx = document.getElementById('chartDescarte').getContext('2d');
+  const bins = {
+    'Activo\n(<3 años)': 0,
+    '3–4 años\nsin uso': 0,
+    '5–7 años\nsin uso': 0,
+    '8–10 años\nsin uso': 0,
+    '>10 años\nsin uso': 0,
+    'Sin\nregistro': 0
+  };
+  descarte.forEach(r => {
+    if (r.fuenteUltimo === 'ninguno') { bins['Sin\nregistro']++; return; }
+    if (r.aniosSinUso === null) return;
+    if (r.aniosSinUso < 3)  bins['Activo\n(<3 años)']++;
+    else if (r.aniosSinUso < 5)  bins['3–4 años\nsin uso']++;
+    else if (r.aniosSinUso < 8)  bins['5–7 años\nsin uso']++;
+    else if (r.aniosSinUso <= 10) bins['8–10 años\nsin uso']++;
+    else bins['>10 años\nsin uso']++;
+  });
+  const bgColors = ['#16a34a','#facc15','#fb923c','#ef4444','#991b1b','#94a3b8'];
+  charts.descarte = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(bins),
+      datasets: [{ label: 'Títulos', data: Object.values(bins), backgroundColor: bgColors, borderRadius: 8, borderSkipped: false }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y.toLocaleString('es-CL')} títulos` } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { font: { family: 'Sora', size: 11 } }, grid: { color: 'rgba(0,0,0,.05)' } },
+        x: { grid: { display: false }, ticks: { font: { family: 'Sora', size: 10 }, maxRotation: 0 } }
+      }
+    }
+  });
+}
+
+/* Gráfico 2: títulos con ≥5 años sin uso por área Dewey */
+function makeAntiguedadChart(descarte) {
+  destroyChart('antiguedad');
+  const ctx = document.getElementById('chartAntiguedad').getContext('2d');
+  const porDewey = {};
+  descarte.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 5).forEach(r => {
+    const area = r.deweynombre || 'Sin clasificar';
+    porDewey[area] = (porDewey[area] || 0) + 1;
+  });
+  const sorted = Object.entries(porDewey).sort((a, b) => b[1] - a[1]).slice(0, 9);
+  const COLORS = ['#1e3660','#c9a444','#2a6496','#e8923a','#5c9e6e','#9b4dca','#e05252','#3a8fb5','#4a7c59'];
+  charts.antiguedad = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(x => x[0]),
+      datasets: [{ label: 'Títulos ≥5 años sin uso', data: sorted.map(x => x[1]), backgroundColor: COLORS, borderRadius: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { font: { family: 'Sora', size: 11 } }, grid: { color: 'rgba(0,0,0,.05)' } },
+        y: { grid: { display: false }, ticks: { font: { family: 'Sora', size: 10 } } }
+      }
+    }
+  });
+}
+function makeHeatmap(colPorDewey) {
+  const cont=document.getElementById('heatmapContainer');
+  const areas=Object.entries(DEWEY_AREAS).map(([k,v])=>({centena:+k*100,nombre:v,prestamos:colPorDewey[v]?.prestamos||0,total:colPorDewey[v]?.total||0}));
+  const maxPrest=Math.max(...areas.map(a=>a.prestamos),1);
+  const grid=document.createElement('div');
+  grid.className='heatmap-grid'; grid.style.gridTemplateColumns='repeat(5,1fr)';
+  areas.forEach(area=>{
+    const intensity=area.prestamos/maxPrest;
+    const cell=document.createElement('div'); cell.className='heatmap-cell';
+    cell.style.background=intensity>0.5?`rgba(30,54,${Math.round(96+44*intensity)},${0.6+intensity*0.4})`:`rgba(201,164,68,${0.1+intensity*0.7})`;
+    cell.style.color=intensity>0.5?'white':'var(--navy)';
+    cell.innerHTML=`<div style="font-size:13px;font-weight:700">${area.centena}</div><div style="font-size:9px;margin-top:2px;line-height:1.2">${area.nombre.split(' ')[0]}</div><div style="font-size:10px;font-weight:600;margin-top:3px">${area.prestamos.toLocaleString()}</div>`;
+    cell.setAttribute('data-tip',`${area.nombre}\n${area.prestamos} préstamos · ${area.total} títulos`);
+    grid.appendChild(cell);
+  });
+  cont.innerHTML=''; cont.appendChild(grid);
+}
+
+/* ============================================================
+   APP — Estado global
+   ============================================================ */
+let state = { coleccionRaw:null, prestamosRaw:null, colData:[], prestData:[], indicadores:null, warnings:[], processed:false };
+
+// NAV TABS
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+  });
+});
+
+// DRAG & DROP
+function onDragOver(e, id) { e.preventDefault(); document.getElementById(id).classList.add('dragover'); }
+function onDragLeave(id) { document.getElementById(id).classList.remove('dragover'); }
+function onDrop(e, tipo) {
+  e.preventDefault();
+  const id=tipo==='coleccion'?'dropCol':'dropPrest';
+  document.getElementById(id).classList.remove('dragover');
+  const file=e.dataTransfer.files[0];
+  if (file) processFile(file, tipo);
+}
+function onFileSelect(e, tipo) { const file=e.target.files[0]; if(file) processFile(file, tipo); }
+
+/* ============================================================
+   MEJORA #7: PROCESAMIENTO CHUNKED para archivos grandes
+   ============================================================ */
+function processInChunks(rows, chunkSize, onProgress, onDone) {
+  const result = [];
+  let i = 1; // skip header
+  const total = rows.length - 1;
+
+  function processChunk() {
+    const end = Math.min(i + chunkSize, rows.length);
+    for (; i < end; i++) result.push(rows[i]);
+    const progress = Math.round(((i-1)/total)*100);
+    onProgress(progress);
+    if (i < rows.length) setTimeout(processChunk, 0);
+    else onDone(result);
+  }
+  processChunk();
+}
+
+function processFile(file, tipo) {
+  showLoader(`Leyendo ${tipo==='coleccion'?'colección':'préstamos'}…`, 0);
+  const reader = new FileReader();
+  reader.onerror = () => { hideLoader(); alert('Error al leer el archivo.'); };
+  reader.onload = e => {
+    try {
+      if (!window.XLSX) throw new Error('Librería XLSX no disponible.');
+      let rows;
+      if (file.name.toLowerCase().endsWith('.csv')) {
+        rows = parseCSV(e.target.result);
+      } else {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, {type:'array', cellDates:false});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:false});
+      }
+
+      // Para archivos grandes (>5000 filas) usar chunked processing
+      const BIG_FILE = rows.length > 5001;
+      if (BIG_FILE) {
+        updateLoaderText(`Procesando ${(rows.length-1).toLocaleString()} registros…`);
+        const header = [rows[0]];
+        processInChunks(rows, 1000,
+          p => setLoaderProgress(p),
+          () => {
+            finishFileLoad(rows, tipo, file);
+          }
+        );
+      } else {
+        finishFileLoad(rows, tipo, file);
+      }
+    } catch(err) {
+      hideLoader();
+      alert('Error al leer el archivo: ' + err.message);
+    }
+  };
+  if (file.name.toLowerCase().endsWith('.csv')) reader.readAsText(file, 'UTF-8');
+  else reader.readAsArrayBuffer(file);
+}
+
+function finishFileLoad(rows, tipo, file) {
+  const parsed = parseKohaFile(rows, tipo);
+  if (tipo === 'coleccion') {
+    state.coleccionRaw = rows; state.colData = parsed.data;
+    state.warnings = [...state.warnings.filter(w=>!w.includes('coleccion')), ...parsed.warnings];
+    showFileInfo('infoColeccion','infoColText', file.name, parsed.data.length);
+    document.getElementById('dropCol').classList.add('loaded');
+  } else {
+    state.prestamosRaw = rows; state.prestData = parsed.data;
+    state.warnings = [...state.warnings.filter(w=>!w.includes('prestamos')), ...parsed.warnings];
+    showFileInfo('infoPrestamos','infoPrestText', file.name, parsed.data.length);
+    document.getElementById('dropPrest').classList.add('loaded');
+  }
+
+  const allMapping = [
+    ...(state.coleccionRaw ? parseKohaFile(state.coleccionRaw,'coleccion').mapping.map(m=>({...m,archivo:'Colección'})) : []),
+    ...(state.prestamosRaw ? parseKohaFile(state.prestamosRaw,'prestamos').mapping.map(m=>({...m,archivo:'Préstamos'})) : [])
+  ];
+  showColumnMapping(allMapping);
+  showWarnings(state.warnings);
+  if (state.colData.length > 0 || state.prestData.length > 0) document.getElementById('processBtn').style.display = 'block';
+  hideLoader();
+}
+
+function parseCSV(text) {
+  const lines=text.split(/\r?\n/).filter(Boolean);
+  if (!lines.length) return [];
+  const sep=lines[0].includes('\t')?'\t':lines[0].includes(';')?';':',';
+  return lines.map(l=>{
+    const cells=[]; let cur='',inQ=false;
+    for (let i=0;i<l.length;i++){const ch=l[i];if(ch==='"'){inQ=!inQ;}else if(ch===sep&&!inQ){cells.push(cur.trim());cur='';}else{cur+=ch;}}
+    cells.push(cur.trim()); return cells;
+  });
+}
+
+function showFileInfo(divId, spanId, fname, count) {
+  const el=document.getElementById(divId);
+  el.classList.add('visible');
+  document.getElementById(spanId).textContent=`${fname} · ${count.toLocaleString('es-CL')} registros`;
+}
+
+/* MEJORA #6: mostrar confianza en la tabla de columnas */
+function showColumnMapping(mapping) {
+  const card=document.getElementById('columnsCard');
+  const body=document.getElementById('columnsMappingBody');
+  card.style.display='block';
+  body.innerHTML=mapping.map(m=>{
+    const confPct=Math.round((m.score||0)*100);
+    const confClass=confPct>=85?'conf-high':confPct>=70?'conf-mid':'conf-low';
+    const confLabel=confPct>=85?'Alta':confPct>=70?'Media':'Baja';
+    return `<tr>
+      <td><span style="font-size:11px;background:var(--surface2);padding:2px 8px;border-radius:10px;">${m.archivo||''}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;">${m.original}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--navy);">${m.field}</td>
+      <td><span style="font-size:11px;color:var(--text-muted)">${m.method||'—'}</span></td>
+      <td>
+        ${m.found
+          ? `<span class="confidence-badge ${confClass}">${confLabel} (${confPct}%)</span>`
+          : '<span class="kpi-badge badge-yellow">⚠ No encontrado</span>'}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function showWarnings(warnings) {
+  if (!warnings.length){document.getElementById('warningsPanel').style.display='none';return;}
+  document.getElementById('warningsPanel').style.display='block';
+  document.getElementById('warningsList').innerHTML=warnings.map(w=>`<div class="warning-item">⚠️ ${w}</div>`).join('');
+}
+
+/* ============================================================
+   PROCESAR
+   ============================================================ */
+function processData() {
+  if (!state.colData.length && !state.prestData.length){alert('Cargue al menos un archivo primero');return;}
+  showLoader('Calculando indicadores…', 0);
+  setTimeout(()=>{
+    try {
+      const col=state.colData.length?state.colData:generateDemoCol();
+      const prest=state.prestData.length?state.prestData:generateDemoPrest();
+      setLoaderProgress(30);
+      state.indicadores=calcIndicadores(col,prest);
+      setLoaderProgress(60);
+      renderDashboard(state.indicadores,col,prest);
+      setLoaderProgress(75);
+      renderCirculacion(state.indicadores,prest);
+      setLoaderProgress(85);
+      renderColeccion(state.indicadores,col);
+      setLoaderProgress(95);
+      renderDescarte(state.indicadores);
+      renderMetodologia();
+      setLoaderProgress(100);
+      state.processed=true;
+      updateStatusBar();
+      document.querySelectorAll('.tab-badge').forEach(b=>b.classList.add('visible'));
+      setTimeout(()=>{document.querySelectorAll('.nav-tab')[1].click(); hideLoader();}, 200);
+    } catch(err) {
+      hideLoader(); console.error(err); alert('Error al procesar: '+err.message);
+    }
+  }, 300);
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function renderDashboard(ind, col, prest) {
+  document.getElementById('dashboardEmpty').style.display='none';
+  document.getElementById('dashboardContent').style.display='block';
+  document.getElementById('dashFecha').textContent=new Date().toLocaleDateString('es-CL',{year:'numeric',month:'long',day:'numeric'});
+
+  const tcClase=ind.TC<1?'red':ind.TC<=3?'yellow':'green';
+  const tcLabel=ind.TC<1?'Bajo uso':ind.TC<=3?'Uso medio':'Alta demanda';
+  const cuClase=ind.CU<30?'red':ind.CU<60?'yellow':'green';
+  const obClase=ind.OB>60?'red':ind.OB>30?'yellow':'green';
+
+  document.getElementById('kpiGrid').innerHTML=`
+    <div class="kpi-card ${cuClase}" data-tip="Porcentaje de títulos con al menos un préstamo">
+      <div class="kpi-label">Colección usada</div>
+      <div class="kpi-value">${ind.CU}%</div>
+      <div class="kpi-sub"><span class="kpi-badge badge-${cuClase==='green'?'green':cuClase==='yellow'?'yellow':'red'}">${ind.titulosUsados.toLocaleString('es-CL')} títulos</span></div>
+    </div>
+    <div class="kpi-card ${tcClase}" data-tip="Préstamos por ejemplar (TC = P/E)">
+      <div class="kpi-label">Tasa de circulación</div>
+      <div class="kpi-value">${ind.TC}</div>
+      <div class="kpi-sub"><span class="kpi-badge badge-${tcClase==='green'?'green':tcClase==='yellow'?'yellow':'red'}">${tcLabel}</span></div>
+    </div>
+    <div class="kpi-card navy" data-tip="Total de préstamos registrados">
+      <div class="kpi-label">Total préstamos</div>
+      <div class="kpi-value">${ind.totalPrest.toLocaleString('es-CL')}</div>
+      <div class="kpi-sub">Período analizado</div>
+    </div>
+    <div class="kpi-card blue" data-tip="Total de títulos en la colección">
+      <div class="kpi-label">Total títulos</div>
+      <div class="kpi-value">${ind.totalTitulos.toLocaleString('es-CL')}</div>
+      <div class="kpi-sub">Colección KOHA</div>
+    </div>
+    <div class="kpi-card ${obClase}" data-tip="OB = TSU/TT × 100">
+      <div class="kpi-label">Obsolescencia</div>
+      <div class="kpi-value">${ind.OB}%</div>
+      <div class="kpi-sub"><span class="kpi-badge badge-${obClase==='red'?'red':obClase==='yellow'?'yellow':'green'}">${ind.titulosSinUso.toLocaleString()} sin uso</span></div>
+    </div>
+    <div class="kpi-card ${ind.IR<=1?'red':ind.IR<=3?'yellow':'green'}" data-tip="IR = P/ED">
+      <div class="kpi-label">Índice de rotación</div>
+      <div class="kpi-value">${ind.IR}</div>
+      <div class="kpi-sub">Préstamos/ejemplar</div>
+    </div>
+    <div class="kpi-card red" data-tip="Títulos sin circulación en los últimos 5 años o más">
+      <div class="kpi-label">Sin uso ≥5 años</div>
+      <div class="kpi-value">${ind.sinUso5mas.toLocaleString()}</div>
+      <div class="kpi-sub">+ ${ind.sinUso3a4.toLocaleString()} en 3–4 años</div>
+    </div>
+    <div class="kpi-card gold" data-tip="Variación último año vs anterior">
+      <div class="kpi-label">Crecimiento circ.</div>
+      <div class="kpi-value">${ind.crecimiento!==null?(ind.crecimiento>0?'+':'')+ind.crecimiento+'%':'—'}</div>
+      <div class="kpi-sub">Último año vs anterior</div>
+    </div>
+  `;
+
+  const alertas=generateAlertas(ind);
+  document.getElementById('alertasContainer').innerHTML=alertas.map(a=>`<div class="alert alert-${a.type}"><span class="alert-icon">${a.icon}</span><div>${a.msg}</div></div>`).join('');
+
+  makeEvolucionChart(ind.porAnio);
+  makeUsoChart(ind.titulosUsados, ind.titulosSinUso);
+  makeDeweyChart(ind.colPorDewey);
+  makeCarreraChart(ind.porCarrera);
+  makeUsuarioChart(ind.porTipoUsuario);
+  makeHeatmap(ind.colPorDewey);
+}
+
+function generateAlertas(ind) {
+  const alertas=[];
+  if (ind.OB>50) alertas.push({type:'danger',icon:'🔴',msg:`El <strong>${ind.OB}%</strong> de la colección no registra circulación. Se recomienda iniciar proceso de evaluación y descarte.`});
+  else if (ind.OB>30) alertas.push({type:'warning',icon:'🟡',msg:`El <strong>${ind.OB}%</strong> de la colección presenta baja circulación. Revisar pertinencia curricular.`});
+  if (ind.TC<1) alertas.push({type:'warning',icon:'📉',msg:`Tasa de circulación <strong>${ind.TC}</strong> por ejemplar. La colección presenta subutilización general.`});
+  if (ind.sinUso5mas > 0) alertas.push({type:'danger',icon:'🗑️',msg:`<strong>${ind.sinUso5mas.toLocaleString()}</strong> títulos no registran circulación en los últimos 5 años o más. Se recomienda revisión con criterio bibliotecológico.`});
+  const topDewey=Object.entries(ind.colPorDewey).sort((a,b)=>b[1].prestamos-a[1].prestamos)[0];
+  if (topDewey) alertas.push({type:'info',icon:'📚',msg:`Área <strong>${topDewey[0]}</strong> concentra la mayor circulación: <strong>${topDewey[1].prestamos.toLocaleString()}</strong> préstamos.`});
+  const topCarrera=Object.entries(ind.porCarrera).sort((a,b)=>b[1]-a[1])[0];
+  if (topCarrera) alertas.push({type:'info',icon:'🎓',msg:`Carrera <strong>${topCarrera[0]}</strong>: mayor número de préstamos (<strong>${topCarrera[1].toLocaleString()}</strong>).`});
+  if (ind.crecimiento!==null&&ind.crecimiento<-10) alertas.push({type:'warning',icon:'📉',msg:`La circulación cayó un <strong>${Math.abs(ind.crecimiento)}%</strong> respecto al año anterior.`});
+  if (!alertas.length) alertas.push({type:'success',icon:'✅',msg:'Los indicadores generales de la colección se encuentran dentro de parámetros aceptables.'});
+  return alertas;
+}
+
+/* ============================================================
+   CIRCULACIÓN
+   ============================================================ */
+function renderCirculacion(ind, prest) {
+  document.getElementById('circEmpty').style.display='none';
+  document.getElementById('circContent').style.display='block';
+
+  // Poblar filtros
+  const years=Object.keys(ind.porAnio).map(Number).sort();
+  populateSelect('filtAnioDesde', years);
+  populateSelect('filtAnioHasta', years);
+  populateSelect('filtCarrera', Object.keys(ind.porCarrera).sort());
+  populateSelect('filtTipoUsuario', Object.keys(ind.porTipoUsuario).sort());
+  const deweyAreas=[...new Set(prest.map(p=>p.deweynombre).filter(Boolean))].sort();
+  populateSelect('filtDewey', deweyAreas);
+
+  updateCircKPIs(ind, prest);
+  renderTopTitulos();
+  renderCircAnualFromData(prest);
+}
+
+/* MEJORA #5: applyFilters aplica filtros a métricas y gráficos */
+function applyFilters() {
+  if (!state.indicadores) return;
+  const filtCarrera=document.getElementById('filtCarrera').value;
+  const filtAnioDesde=parseInt(document.getElementById('filtAnioDesde').value)||0;
+  const filtAnioHasta=parseInt(document.getElementById('filtAnioHasta').value)||9999;
+  const filtTipoUsuario=document.getElementById('filtTipoUsuario').value;
+  const filtDewey=document.getElementById('filtDewey').value;
+
+  const hasFilter=filtCarrera||filtAnioDesde||filtAnioHasta<9999||filtTipoUsuario||filtDewey;
+  document.getElementById('circFilterBadge').style.display=hasFilter?'inline-flex':'none';
+
+  const base=state.prestData.length?state.prestData:generateDemoPrest();
+  const filtered=base.filter(p=>{
+    if (filtCarrera&&p.carrera!==filtCarrera) return false;
+    const a=p.anio||0;
+    if (filtAnioDesde&&a&&a<filtAnioDesde) return false;
+    if (filtAnioHasta<9999&&a&&a>filtAnioHasta) return false;
+    if (filtTipoUsuario&&p.tipo_usuario!==filtTipoUsuario) return false;
+    if (filtDewey&&p.deweynombre!==filtDewey) return false;
+    return true;
+  });
+
+  const col=state.colData.length?state.colData:generateDemoCol();
+  const ind=calcIndicadores(col, filtered);
+  updateCircKPIs(ind, filtered);
+  renderCircAnualFromData(filtered);
+}
+
+function resetCircFilters() {
+  ['filtCarrera','filtAnioDesde','filtAnioHasta','filtTipoUsuario','filtDewey'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('circFilterBadge').style.display='none';
+  applyFilters();
+}
+
+function updateCircKPIs(ind, prest) {
+  const topCarrera=Object.entries(ind.porCarrera).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('kpiCirc').innerHTML=`
+    <div class="kpi-card navy"><div class="kpi-label">Total préstamos</div><div class="kpi-value">${prest.length.toLocaleString('es-CL')}</div><div class="kpi-sub">En selección actual</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Carrera más activa</div><div class="kpi-value" style="font-size:14px;line-height:1.3">${topCarrera?topCarrera[0].substring(0,22)+(topCarrera[0].length>22?'…':''):'—'}</div><div class="kpi-sub">${topCarrera?topCarrera[1].toLocaleString()+' préstamos':''}</div></div>
+    <div class="kpi-card blue"><div class="kpi-label">Áreas Dewey activas</div><div class="kpi-value">${Object.keys(ind.colPorDewey).filter(k=>k!=='Sin clasificar'&&ind.colPorDewey[k].prestamos>0).length}</div><div class="kpi-sub">de 10 clases Dewey</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Tasa circulación (TC)</div><div class="kpi-value">${ind.TC}</div><div class="kpi-sub">préstamos/ejemplar</div></div>
+  `;
+}
+
+function renderTopTitulos() {
+  const col=state.colData.length?state.colData:generateDemoCol();
+  const data=col.filter(r=>parseInt(r.prestamos)>0).sort((a,b)=>(parseInt(b.prestamos)||0)-(parseInt(a.prestamos)||0)).slice(0,20);
+  const body=document.getElementById('topTitulosBody');
+  body.innerHTML=data.map((r,i)=>{
+    const prest=parseInt(r.prestamos)||0;
+    const badge=prest>10?'badge-green':prest>3?'badge-blue':'badge-yellow';
+    return `<tr>
+      <td><strong style="color:var(--gold)">${i+1}</strong></td>
+      <td style="max-width:260px;white-space:normal">${r.titulo||'—'}</td>
+      <td style="color:var(--text-muted)">${r.autor||'—'}</td>
+      <td><span style="font-family:'JetBrains Mono',monospace;font-size:12px">${r.dewey||'—'}</span></td>
+      <td><strong>${prest.toLocaleString()}</strong></td>
+      <td><span class="kpi-badge ${badge}">${prest>10?'Alta demanda':prest>3?'Medio':'Bajo'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCircAnualFromData(prest) {
+  const body=document.getElementById('circAnualBody');
+  const porAreaAnio={};
+  for (const p of prest) {
+    const area=p.deweynombre||'Sin clasificar';
+    const a=p.anio; if(!a) continue;
+    if (!porAreaAnio[area]) porAreaAnio[area]={};
+    porAreaAnio[area][a]=(porAreaAnio[area][a]||0)+1;
+  }
+  const allYears=['2020','2021','2022','2023','2024','2025'];
+  const rows=Object.entries(porAreaAnio).filter(([,v])=>Object.values(v).some(x=>x>0))
+    .sort((a,b)=>Object.values(b[1]).reduce((s,x)=>s+x,0)-Object.values(a[1]).reduce((s,x)=>s+x,0));
+
+  if (!rows.length) {
+    body.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text-muted)">No hay datos históricos por año para el filtro aplicado</td></tr>';
+    return;
+  }
+  body.innerHTML=rows.slice(0,15).map(([area,anios])=>{
+    const vals=allYears.map(y=>anios[+y]||0);
+    const total=vals.reduce((s,x)=>s+x,0);
+    const max=Math.max(...vals);
+    const tend=vals[5]>vals[0]?'↑':vals[5]<vals[0]?'↓':'→';
+    return `<tr>
+      <td style="font-weight:600">${area}</td>
+      ${vals.map(v=>`<td style="font-family:'JetBrains Mono',monospace;font-size:12px;${v===max&&max>0?'background:rgba(201,164,68,.12);font-weight:700':''}">${v||''}</td>`).join('')}
+      <td><strong>${total.toLocaleString()}</strong></td>
+      <td style="font-size:16px;text-align:center;color:${tend==='↑'?'var(--success)':tend==='↓'?'var(--danger)':'var(--text-muted)'}">${tend}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ============================================================
+   COLECCIÓN
+   ============================================================ */
+function renderColeccion(ind, col) {
+  document.getElementById('colEmpty').style.display='none';
+  document.getElementById('colContent').style.display='block';
+
+  const deweyAreas=[...new Set(col.map(c=>c.deweynombre).filter(Boolean))].sort();
+  populateSelect('filtColDewey', deweyAreas);
+  const tipos=[...new Set(col.map(c=>c.tipo_recurso).filter(Boolean))].sort();
+  populateSelect('filtTipoRecurso', tipos);
+
+  // MEJORA #2: poblar rango de años publicación
+  const aniosPub=[...new Set(col.map(c=>parseInt(c.anio_cutter)||parseInt(c.anio)||null).filter(Boolean))].sort();
+  if (aniosPub.length) {
+    populateSelect('filtColAnioDesde', aniosPub);
+    populateSelect('filtColAnioHasta', aniosPub);
+  }
+
+  updateColKPIs(ind, col);
+  renderObsolescencia(ind.colPorDewey);
+  renderSinCirculacion(col);
+}
+
+/* MEJORA #5: applyColFilters aplica filtros a métricas de colección */
+function applyColFilters() {
+  if (!state.indicadores) return;
+  const filtDewey=document.getElementById('filtColDewey').value;
+  const filtTipo=document.getElementById('filtTipoRecurso').value;
+  const filtDesde=parseInt(document.getElementById('filtColAnioDesde').value)||0;
+  const filtHasta=parseInt(document.getElementById('filtColAnioHasta').value)||9999;
+  const filtEstado=document.getElementById('filtEstado').value;
+
+  const hasFilter=filtDewey||filtTipo||filtDesde||filtHasta<9999||filtEstado;
+  document.getElementById('colFilterBadge').style.display=hasFilter?'inline-flex':'none';
+
+  const base=state.colData.length?state.colData:generateDemoCol();
+  const filtered=base.filter(c=>{
+    if (filtDewey&&c.deweynombre!==filtDewey) return false;
+    if (filtTipo&&c.tipo_recurso!==filtTipo) return false;
+    const anioP=parseInt(c.anio_cutter)||parseInt(c.anio)||0;
+    if (filtDesde&&anioP&&anioP<filtDesde) return false;
+    if (filtHasta<9999&&anioP&&anioP>filtHasta) return false;
+    if (filtEstado==='activo'&&!parseInt(c.prestamos)) return false;
+    if (filtEstado==='inactivo'&&parseInt(c.prestamos)>0) return false;
+    return true;
+  });
+
+  const prest=state.prestData.length?state.prestData:generateDemoPrest();
+  const ind=calcIndicadores(filtered, prest);
+  updateColKPIs(ind, filtered);
+  renderObsolescencia(ind.colPorDewey);
+  renderSinCirculacion(filtered);
+}
+
+function resetColFilters() {
+  ['filtColDewey','filtTipoRecurso','filtColAnioDesde','filtColAnioHasta','filtEstado'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('colFilterBadge').style.display='none';
+  applyColFilters();
+}
+
+function updateColKPIs(ind, col) {
+  document.getElementById('kpiCol').innerHTML=`
+    <div class="kpi-card navy"><div class="kpi-label">Total títulos</div><div class="kpi-value">${ind.totalTitulos.toLocaleString()}</div><div class="kpi-sub">En selección actual</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Con circulación</div><div class="kpi-value">${ind.titulosUsados.toLocaleString()}</div><div class="kpi-sub">${ind.CU}% de la selección</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Sin circulación</div><div class="kpi-value">${ind.titulosSinUso.toLocaleString()}</div><div class="kpi-sub">${ind.OB}% obsolescencia</div></div>
+    <div class="kpi-card gold"><div class="kpi-label">Año promedio pub.</div><div class="kpi-value">${ind.avgAnio||'—'}</div><div class="kpi-sub">${ind.edadPromedio?ind.edadPromedio+' años de antigüedad':''}</div></div>
+  `;
+}
+
+function renderObsolescencia(colPorDewey) {
+  const body=document.getElementById('obsolescenciaBody');
+  const rows=Object.entries(colPorDewey).map(([area,d])=>{
+    const ob=pct(d.total-d.usados,d.total);
+    const tasa=safeDiv(d.prestamos,d.total);
+    const sem=ob>60?'rojo':ob>30?'amarillo':'verde';
+    return {area,total:d.total,sinUso:d.total-d.usados,ob,tasa,sem,label:ob>60?'Alta':ob>30?'Media':'Baja'};
+  }).sort((a,b)=>b.ob-a.ob);
+  body.innerHTML=rows.map(r=>`<tr>
+    <td style="font-weight:600">${r.area}</td>
+    <td>${r.total.toLocaleString()}</td>
+    <td>${r.sinUso.toLocaleString()}</td>
+    <td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar-wrap" style="width:80px"><div class="progress-bar ${r.ob>60?'red':r.ob>30?'gold':'green'}" style="width:${Math.min(r.ob,100)}%"></div></div><strong>${r.ob}%</strong></div></td>
+    <td><span style="font-family:'JetBrains Mono',monospace">${r.tasa}</span></td>
+    <td>${semaforoHTML(r.sem,r.label)}</td>
+  </tr>`).join('');
+}
+
+function renderSinCirculacion(col) {
+  const body=document.getElementById('sinCircBody');
+  const anioActual=new Date().getFullYear();
+  const sinCirc=col.filter(c=>!parseInt(c.prestamos)).sort((a,b)=>{
+    const aa=parseInt(a.anio_cutter)||parseInt(a.anio)||0;
+    const ab=parseInt(b.anio_cutter)||parseInt(b.anio)||0;
+    return aa-ab;
+  }).slice(0,50);
+  body.innerHTML=sinCirc.map(r=>{
+    const anioP=parseInt(r.anio_cutter)||parseInt(r.anio)||null;
+    const antiguedad=anioP?anioActual-anioP:'—';
+    const cls=anioP&&anioActual-anioP>10?'color:var(--danger)':'';
+    return `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${r.topografico||'—'}</td>
+      <td style="max-width:220px;white-space:normal">${r.titulo||'—'}</td>
+      <td style="color:var(--text-muted)">${r.autor||'—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;${cls}">${anioP||'—'}</td>
+      <td style="${cls}">${antiguedad==='—'?'—':antiguedad+' años'}</td>
+      <td>${r.clasificacion?`<span class="kpi-badge ${r.clasificacion==='Crítico'||r.clasificacion==='Alto'?'badge-red':r.clasificacion==='Medio'?'badge-yellow':'badge-green'}">${r.clasificacion}</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ============================================================
+   DESCARTE
+   ============================================================ */
+function renderDescarte(ind) {
+  document.getElementById('descEmpty').style.display = 'none';
+  document.getElementById('descContent').style.display = 'block';
+
+  // KPIs centrados en años sin circulación
+  document.getElementById('kpiDesc').innerHTML = `
+    <div class="kpi-card red" data-tip="Títulos sin ningún préstamo en los últimos 5 años o más">
+      <div class="kpi-label">≥5 años sin circulación</div>
+      <div class="kpi-value">${ind.sinUso5mas.toLocaleString('es-CL')}</div>
+      <div class="kpi-sub">Candidatos prioritarios a revisión</div>
+    </div>
+    <div class="kpi-card yellow" data-tip="Títulos sin préstamos en los últimos 3 o 4 años">
+      <div class="kpi-label">3–4 años sin circulación</div>
+      <div class="kpi-value">${ind.sinUso3a4.toLocaleString('es-CL')}</div>
+      <div class="kpi-sub">En seguimiento</div>
+    </div>
+    <div class="kpi-card blue" data-tip="Títulos que nunca han registrado un préstamo">
+      <div class="kpi-label">Sin registro alguno</div>
+      <div class="kpi-value">${ind.sinRegistro.toLocaleString('es-CL')}</div>
+      <div class="kpi-sub">Nunca prestados</div>
+    </div>
+    <div class="kpi-card green" data-tip="Títulos con préstamos en los últimos 2 años">
+      <div class="kpi-label">Activos (≤2 años)</div>
+      <div class="kpi-value">${ind.activos.toLocaleString('es-CL')}</div>
+      <div class="kpi-sub">Circulación reciente</div>
+    </div>`;
+
+  makeDescarteChart(ind.descarte);
+  makeAntiguedadChart(ind.descarte);
+
+  // Poblar filtro Dewey
+  const deweyAreas = [...new Set(ind.descarte.map(r => r.deweynombre).filter(Boolean))].sort();
+  const selDewey = document.getElementById('filtDescDewey');
+  selDewey.innerHTML = '<option value="">Todas</option>';
+  deweyAreas.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; selDewey.appendChild(o); });
+
+  // Render inicial: mostrar ≥5 años
+  applyDescFiltros(ind.descarte);
+}
+
+function applyDescFiltros(descarteData) {
+  const ind = state.indicadores;
+  if (!ind) return;
+  const data = descarteData || ind.descarte;
+
+  const vista  = document.getElementById('filtDescVista').value;
+  const dewey  = document.getElementById('filtDescDewey').value;
+  const orden  = document.getElementById('filtDescOrden').value;
+
+  let filtered = data;
+
+  // Filtro por vista
+  if (vista === '5mas')   filtered = filtered.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 5);
+  else if (vista === '3a4')  filtered = filtered.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 3 && r.aniosSinUso < 5);
+  else if (vista === 'todos') filtered = filtered.filter(r => r.aniosSinUso === null || r.aniosSinUso >= 1 || r.fuenteUltimo === 'ninguno');
+  else if (vista === 'sinreg') filtered = filtered.filter(r => r.fuenteUltimo === 'ninguno');
+
+  // Filtro Dewey
+  if (dewey) filtered = filtered.filter(r => r.deweynombre === dewey);
+
+  // Ordenar
+  if (orden === 'sinuso') filtered = [...filtered].sort((a, b) => (b.aniosSinUso ?? 999) - (a.aniosSinUso ?? 999));
+  else if (orden === 'prestamos') filtered = [...filtered].sort((a, b) => (parseInt(a.prestamos) || 0) - (parseInt(b.prestamos) || 0));
+  else if (orden === 'aniopub') filtered = [...filtered].sort((a, b) => (a.anioPublicacion || 9999) - (b.anioPublicacion || 9999));
+
+  document.getElementById('descTotalLabel').textContent = `${filtered.length.toLocaleString('es-CL')} títulos`;
+
+  const body = document.getElementById('descarteCriticoBody');
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted)">No hay títulos que coincidan con los filtros seleccionados</td></tr>';
+    return;
+  }
+
+  body.innerHTML = filtered.slice(0, 200).map(r => {
+    // Color semáforo por años sin uso
+    let badgeClass = 'badge-blue';
+    let badgeLabel = r.estadoUso;
+    if (r.estadoUso === '≥5 años sin uso')   { badgeClass = 'badge-red'; }
+    else if (r.estadoUso === '3–4 años sin uso') { badgeClass = 'badge-yellow'; }
+    else if (r.estadoUso === 'Activo')           { badgeClass = 'badge-green'; }
+    else if (r.estadoUso === 'Sin registro')      { badgeClass = 'badge-blue'; }
+
+    const aniosSinUsoTxt = r.aniosSinUso !== null
+      ? `<strong style="color:${r.aniosSinUso >= 5 ? 'var(--danger)' : r.aniosSinUso >= 3 ? 'var(--warning)' : 'var(--success)'}">${r.aniosSinUso} años</strong>`
+      : '<span style="color:var(--text-muted)">—</span>';
+
+    const totalPrest = parseInt(r.prestamos) || 0;
+
+    return `<tr>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap">${r.topografico || '—'}</td>
+      <td style="max-width:230px;white-space:normal;font-size:13px">${r.titulo || '—'}</td>
+      <td style="color:var(--text-muted);font-size:12px">${r.autor || '—'}</td>
+      <td style="font-size:12px">${r.deweynombre || '—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-muted)" title="Solo referencial">${r.anioPublicacion || '—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${r.ultimoPrestamo}</td>
+      <td>${aniosSinUsoTxt}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;text-align:center">${totalPrest > 0 ? totalPrest.toLocaleString() : '—'}</td>
+      <td><span class="kpi-badge ${badgeClass}">${badgeLabel}</span></td>
+      <td style="font-size:12px">
+    ${r.unidad_academica || '—'}
+</td>
+    </tr>`;
+  }).join('');
+}
+function exportDescarteExcel() {
+  const ind = state.indicadores;
+  if (!ind) { alert('Procese datos primero'); return; }
+  const vista  = document.getElementById('filtDescVista').value;
+  const dewey  = document.getElementById('filtDescDewey').value;
+  let data = ind.descarte;
+  if (vista === '5mas')    data = data.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 5);
+  else if (vista === '3a4') data = data.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 3 && r.aniosSinUso < 5);
+  else if (vista === 'sinreg') data = data.filter(r => r.fuenteUltimo === 'ninguno');
+  if (dewey) data = data.filter(r => r.deweynombre === dewey);
+  data = data.sort((a, b) => (b.aniosSinUso ?? 999) - (a.aniosSinUso ?? 999));
+
+  const rows = [['Topográfico','Título','Autor','Área Dewey','Año pub. (ref.)','Último préstamo','Años sin uso','Total prést. histórico','Estado','Unidad académica']];
+  data.forEach(r => rows.push([r.topografico,r.titulo,r.autor,r.deweynombre,r.anioPublicacion || '',r.ultimoPrestamo,r.aniosSinUso ?? '',parseInt(r.prestamos) || 0,r.estadoUso, r.unidad_academica || '']));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Sin circulación');
+  XLSX.writeFile(wb, `Descarte_PUCV_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+/* ============================================================
+   METODOLOGÍA
+   ============================================================ */
+const FORMULAS=[
+  {num:1,nombre:'Tasa de Circulación',objetivo:'Medir cuántas veces circula cada ejemplar',expr:'TC = P / E',vars:[['P','Total de préstamos'],['E','Total de ejemplares']],interp:'TC < 1 → Bajo uso · TC 1–3 → Uso medio · TC > 3 → Alta circulación'},
+  {num:2,nombre:'Colección Usada (%)',objetivo:'Porcentaje de colección con circulación',expr:'CU = (TU / TT) × 100',vars:[['TU','Títulos utilizados'],['TT','Total de títulos']],interp:'Mayor % indica mejor aprovechamiento'},
+  {num:3,nombre:'Índice de Rotación',objetivo:'Intensidad de uso de ejemplares',expr:'IR = P / ED',vars:[['P','Préstamos'],['ED','Ejemplares disponibles']],interp:'Mayor índice = mayor eficiencia por ejemplar'},
+  {num:4,nombre:'Uso por Área Disciplinar',objetivo:'Circulación comparativa por área',expr:'UA = PA / EA',vars:[['PA','Préstamos del área'],['EA','Ejemplares del área']],interp:'Identifica áreas con alta o baja demanda'},
+  {num:5,nombre:'Costo por Uso',objetivo:'Eficiencia presupuestaria',expr:'CPU = CT / U',vars:[['CT','Costo total'],['U','Usos totales']],interp:'Menor CPU = mayor eficiencia presupuestaria'},
+  {num:6,nombre:'Antigüedad sin Uso',objetivo:'Detectar material obsoleto',expr:'ASU = FA − UP',vars:[['FA','Fecha actual'],['UP','Último préstamo']],interp:'1-3 = normal · 4-5 = revisar · >5 = posible descarte'},
+  {num:7,nombre:'Obsolescencia (%)',objetivo:'Porcentaje de colección inactiva',expr:'OB = (TSU / TT) × 100',vars:[['TSU','Títulos sin uso'],['TT','Total títulos']],interp:'Alto % requiere revisión y posible depuración'},
+  {num:8,nombre:'Cobertura Bibliográfica',objetivo:'Disponibilidad de bibliografía académica',expr:'CB = (BD / BS) × 100',vars:[['BD','Bibliografía disponible'],['BS','Bibliografía solicitada']],interp:'Mayor % = mejor cobertura de demanda académica'},
+  {num:9,nombre:'Demanda Insatisfecha',objetivo:'Solicitudes no cubiertas',expr:'DI = (RNS / ST) × 100',vars:[['RNS','Reservas no satisfechas'],['ST','Solicitudes totales']],interp:'Menor % = mejor cobertura'},
+  {num:10,nombre:'Índice de Descarte',objetivo:'Candidatos a expurgo bibliográfico',expr:'ID = (ASU×0.5) + ((1/TC)×0.3) + (D×0.2)',vars:[['ASU','Antigüedad sin uso'],['TC','Tasa circulación'],['D','Duplicación']],interp:'0-2=Bajo · 2-4=Medio · 4-6=Alto · >6=Crítico'},
+  {num:11,nombre:'Tasa de Uso por Dewey',objetivo:'Circulación relativa por Dewey',expr:'UD = PD / ED',vars:[['PD','Préstamos Dewey'],['ED','Ejemplares Dewey']],interp:'Identifica áreas con mayor y menor uso'},
+  {num:12,nombre:'Crecimiento de Circulación',objetivo:'Evolución anual de préstamos',expr:'GC = ((PA − PP) / PP) × 100',vars:[['PA','Préstamos año actual'],['PP','Préstamos período previo']],interp:'+ = crecimiento · − = caída de circulación'}
+];
+
+function renderMetodologia() {
+  const grid=document.getElementById('formulaGrid');
+  if (grid.children.length>0) return;
+  grid.innerHTML=FORMULAS.map(f=>`
+    <div class="formula-card">
+      <div class="formula-card-header">
+        <div class="formula-num">${f.num}</div>
+        <div class="formula-name">${f.nombre}</div>
+      </div>
+      <div class="formula-card-body">
+        <div class="formula-obj">${f.objetivo}</div>
+        <div class="formula-box">${f.expr}</div>
+        <div class="formula-vars">${f.vars.map(([k,v])=>`<span><strong>${k}</strong> = ${v}</span>`).join('')}</div>
+        <div class="formula-interp">📌 ${f.interp}</div>
+      </div>
+    </div>`).join('');
+}
+document.querySelector('[data-tab="metodologia"]').addEventListener('click', renderMetodologia);
+
+/* ============================================================
+   FILTROS — auxiliares
+   ============================================================ */
+function populateSelect(id, options) {
+  const sel=document.getElementById(id);
+  if (!sel) return;
+  const val=sel.value;
+  const first=sel.options[0];
+  sel.innerHTML='';
+  sel.appendChild(first.cloneNode(true));
+  options.forEach(o=>{ const opt=document.createElement('option'); opt.value=o; opt.textContent=o; sel.appendChild(opt); });
+  if (val) sel.value=val;
+}
+
+/* ============================================================
+   EXPORT
+   ============================================================ */
+function exportExcel() {
+  if (!state.indicadores){alert('Procese datos primero');return;}
+  const ind=state.indicadores;
+  const wb=XLSX.utils.book_new();
+  const kpiData=[['Indicador','Valor','Unidad'],['Tasa de Circulación (TC)',ind.TC,'préstamos/ejemplar'],['Colección Usada (%)',ind.CU,'%'],['Índice de Rotación',ind.IR,''],['Obsolescencia (%)',ind.OB,'%'],['Total Títulos',ind.totalTitulos,''],['Con circulación',ind.titulosUsados,''],['Sin circulación',ind.titulosSinUso,''],['Total Préstamos Históricos',ind.totalPrestHist,''],['Descarte Crítico',ind.descCritico,''],['Descarte Alto',ind.descAlto,''],['Año Promedio Pub.',ind.avgAnio||'—',''],['Crecimiento Circulación',ind.crecimiento!==null?ind.crecimiento+'%':'—','']];
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(kpiData),'KPI');
+  const deweyData=[['Área Dewey','Total','Usados','Préstamos','Tasa']];
+  for(const [area,d] of Object.entries(ind.colPorDewey)) deweyData.push([area,d.total,d.usados,d.prestamos,safeDiv(d.prestamos,d.total)]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(deweyData),'Análisis Dewey');
+  const carData=[['Carrera','Préstamos']];
+  for(const [c,n] of Object.entries(ind.porCarrera).sort((a,b)=>b[1]-a[1])) carData.push([c,n]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(carData),'Préstamos por Carrera');
+  const evData=[['Año','Préstamos']];
+  for(const [a,n] of Object.entries(ind.porAnio).sort()) evData.push([+a,n]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(evData),'Evolución Anual');
+  // Hoja: Candidatos a Descarte — usa campos actuales del modelo (estadoUso, ultimoPrestamo, deweynombre)
+  const descData=[['Topográfico','Título','Autor','Área Dewey','Año pub. (ref.)','Último préstamo','Años sin uso','Total prést. histórico','Estado','Unidad académica']];
+  const descFiltered = ind.descarte
+    .filter(r => r.aniosSinUso >= 3 || r.fuenteUltimo === 'ninguno')
+    .sort((a, b) => (b.aniosSinUso ?? 999) - (a.aniosSinUso ?? 999));
+  for(const r of descFiltered) descData.push([
+    r.topografico,
+    r.titulo,
+    r.autor,
+    r.deweynombre || '',
+    r.anioPublicacion || '',
+    r.ultimoPrestamo,
+    r.aniosSinUso ?? '',
+    parseInt(r.prestamos) || 0,
+    r.estadoUso,
+    r.unidad_academica || ''
+  ]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(descData),'Candidatos Descarte');
+  XLSX.writeFile(wb,`Analitica_Bibliotecaria_PUCV_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportPDF() {
+  if (!state.indicadores){alert('Procese datos primero');return;}
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const ind=state.indicadores;
+  doc.setFillColor(30,54,96); doc.rect(0,0,210,28,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.text('Analítica Bibliotecaria · PUCV',14,12);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text(`Reporte generado: ${new Date().toLocaleDateString('es-CL')}`,14,20);
+  let y=36; doc.setTextColor(30,54,96); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('Indicadores Principales',14,y); y+=8;
+  const kpis=[['Tasa de Circulación (TC)',ind.TC,'préstamos/ejemplar'],['Colección Usada',ind.CU+'%',''],['Índice de Rotación',ind.IR,''],['Obsolescencia',ind.OB+'%',''],['Total Títulos',ind.totalTitulos.toLocaleString(),''],['Con circulación',ind.titulosUsados.toLocaleString(),''],['Sin circulación',ind.titulosSinUso.toLocaleString(),''],['Total Préstamos',ind.totalPrestHist.toLocaleString(),''],['Descarte Crítico',ind.descCritico.toLocaleString(),'']];
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  kpis.forEach(([label,val,unit])=>{doc.setTextColor(100,116,139);doc.text(label,14,y);doc.setTextColor(30,54,96);doc.setFont('helvetica','bold');doc.text(String(val)+(unit?' '+unit:''),120,y);doc.setFont('helvetica','normal');y+=7;});
+  y+=6; doc.setFillColor(201,164,68); doc.rect(14,y,4,20,'F');
+  doc.setTextColor(30,54,96); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text('Análisis por Área Dewey',22,y+8); y+=14;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  for(const [area,d] of Object.entries(ind.colPorDewey).sort((a,b)=>b[1].prestamos-a[1].prestamos).slice(0,8)){doc.setTextColor(100,116,139);doc.text(area,22,y);doc.setTextColor(30,54,96);doc.text(`${d.prestamos} préstamos · ${d.total} títulos · Tasa: ${safeDiv(d.prestamos,d.total)}`,100,y);y+=6;}
+  doc.setFillColor(30,54,96); doc.rect(0,282,210,15,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(8);
+  doc.text('Sistema de Analítica Bibliotecaria · PUCV · Compatible con KOHA ILS',14,291);
+  doc.text('Pág. 1',195,291);
+  doc.save(`Reporte_Biblioteca_PUCV_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+/* ============================================================
+   LOADER helpers
+   ============================================================ */
+function showLoader(sub='', progress=0) {
+  document.getElementById('loader').classList.add('active');
+  document.getElementById('loaderSub').textContent=sub;
+  setLoaderProgress(progress);
+}
+function hideLoader() { document.getElementById('loader').classList.remove('active'); }
+function updateLoaderText(txt) { document.getElementById('loaderSub').textContent=txt; }
+function setLoaderProgress(p) { const el=document.getElementById('loaderProgress'); if(el) el.style.width=p+'%'; }
+
+/* STATUS BAR */
+function updateStatusBar() {
+  document.getElementById('statusDot').classList.add('active');
+  document.getElementById('statusText').textContent=`${(state.colData.length||0).toLocaleString()} títulos · ${(state.prestData.length||0).toLocaleString()} préstamos cargados`;
+}
+
+/* CLEAR */
+function clearAll() {
+  if (!confirm('¿Limpiar todos los datos cargados?')) return;
+  state={coleccionRaw:null,prestamosRaw:null,colData:[],prestData:[],indicadores:null,warnings:[],processed:false};
+  ['infoColeccion','infoPrestamos'].forEach(id=>document.getElementById(id).classList.remove('visible'));
+  ['dropCol','dropPrest'].forEach(id=>document.getElementById(id).classList.remove('loaded'));
+  document.getElementById('columnsCard').style.display='none';
+  document.getElementById('warningsPanel').style.display='none';
+  document.getElementById('processBtn').style.display='none';
+  document.getElementById('dashboardEmpty').style.display='block';
+  document.getElementById('dashboardContent').style.display='none';
+  document.getElementById('statusDot').classList.remove('active');
+  document.getElementById('statusText').textContent='Sin datos cargados';
+  document.querySelectorAll('.tab-badge').forEach(b=>b.classList.remove('visible'));
+  Object.values(charts).forEach(c=>c.destroy()); charts={};
+}
+
+/* ============================================================
+   DATOS DE DEMOSTRACIÓN
+   ============================================================ */
+function generateDemoCol() {
+  const AUTORES=['García López','Martínez Silva','Rodríguez Pérez','González Muñoz','Hernández Castro','Jiménez Vargas','Morales Fuentes','Romero Díaz','Torres Medina','Flores Rivas'];
+  const TITULOS=[['519.4 RAM 1995','Análisis Matemático',400],['658.403 HIL 1989','Gestión Empresarial',312],['371.302 GUT 2001','Pedagogía Moderna',287],['330.1 MEN 2010','Economía General',254],['616.0 CAS 2005','Medicina Clínica',198],['540.0 RIV 1998','Química Orgánica',187],['620.0 TOR 2003','Ingeniería de Sistemas',176],['150.0 FLO 2008','Psicología Social',165],['340.0 MOR 2000','Derecho Civil',154],['070.0 GON 2012','Periodismo Digital',143],['510.0 ROM 1997','Álgebra Lineal',132],['300.0 HER 2006','Ciencias Sociales',121],['820.0 JIM 1992','Literatura Universal',98],['720.0 FER 2015','Arquitectura Moderna',87],['900.0 PAR 1988','Historia de Chile',76],['400.0 SAL 2009','Lingüística Aplicada',65],['200.0 VEL 1985','Filosofía Antigua',54],['100.0 AGU 2014','Ética Profesional',43],['000.0 BUS 2018','Ciencias de la Info.',32],['800.0 DEL 2001','Retórica y Oratoria',12]];
+  const col=[]; let i=0;
+  for (const [top,tit,prestBase] of TITULOS) {
+    const count=Math.floor(Math.random()*15)+5;
+    for (let j=0;j<count;j++) {
+      const prest=j===0?prestBase+Math.floor(Math.random()*50):Math.floor(Math.random()*prestBase*0.3);
+      const dd=extractDewey(top);
+      col.push({topografico:top,tipo_recurso:'Libro',autor:AUTORES[i%AUTORES.length],titulo:tit,anio:String(1985+Math.floor(Math.random()*35)),prestamos:String(prest),dewey:dd.dewey,deweycentena:dd.centena,deweynombre:dd.nombre,cutter:dd.cutter,anio_cutter:dd.anio});
+      i++;
+    }
+  }
+  return col;
+}
+
+function generateDemoPrest() {
+  const CARRERAS=['Ingeniería Civil','Pedagogía en Matemáticas','Psicología','Derecho','Medicina','Arquitectura','Administración','Periodismo','Enfermería','Educación Parvularia','Química y Farmacia','Trabajo Social'];
+  const TIPOS=['Pregrado','Postgrado','Académico','Funcionario'];
+  // Topográficos que coinciden con generateDemoCol → cruce funciona en modo demo
+  const TOPS_ACTIVOS=[
+    '519.4 RAM 1995','658.403 HIL 1989','371.302 GUT 2001',
+    '330.1 MEN 2010','616.0 CAS 2005','540.0 RIV 1998',
+    '620.0 TOR 2003','150.0 FLO 2008'
+  ];
+  // Estos solo tienen préstamos hasta 2017–2019 → quedarán con >5 años sin uso
+  const TOPS_INACTIVOS=[
+    '340.0 MOR 2000','070.0 GON 2012','510.0 ROM 1997',
+    '300.0 HER 2006','820.0 JIM 1992','900.0 PAR 1988',
+    '400.0 SAL 2009','200.0 VEL 1985'
+  ];
+  const prest=[];
+  // Préstamos activos 2020–2025
+  const countByYear={2020:820,2021:340,2022:650,2023:980,2024:1150,2025:890};
+  for (const [anio,total] of Object.entries(countByYear)) {
+    for (let i=0;i<total;i++) {
+      const top=TOPS_ACTIVOS[Math.floor(Math.random()*TOPS_ACTIVOS.length)];
+      const dd=extractDewey(top);
+      const mes=Math.ceil(Math.random()*12);
+      const fecha=new Date(+anio,mes-1,Math.ceil(Math.random()*28));
+      prest.push({fecha,anio:+anio,mes,carrera:CARRERAS[Math.floor(Math.random()*CARRERAS.length)],tipo_usuario:TIPOS[Math.floor(Math.random()*TIPOS.length)],topografico:top,titulo:`Título activo ${i}`,autor:`Autor ${i}`,dewey:dd.dewey,deweycentena:dd.centena,deweynombre:dd.nombre});
+    }
+  }
+  // Préstamos inactivos: últimos en 2015–2019 (simulan >5 años sin uso al 2025)
+  const aniosViejos=[2015,2016,2017,2018,2019];
+  for (const top of TOPS_INACTIVOS) {
+    const dd=extractDewey(top);
+    const nPrest=Math.floor(Math.random()*25)+5;
+    for (let i=0;i<nPrest;i++) {
+      const anio=aniosViejos[Math.floor(Math.random()*aniosViejos.length)];
+      prest.push({fecha:new Date(anio,3,1),anio,mes:4,carrera:CARRERAS[0],tipo_usuario:'Pregrado',topografico:top,titulo:`Título inactivo`,autor:`Autor`,dewey:dd.dewey,deweycentena:dd.centena,deweynombre:dd.nombre});
+    }
+  }
+  return prest;
+}
+
+function loadDemoData() {
+  showLoader('Cargando datos de demostración…', 10);
+  setTimeout(()=>{
+    state.colData=generateDemoCol();
+    setLoaderProgress(50);
+    state.prestData=generateDemoPrest();
+    setLoaderProgress(90);
+    showFileInfo('infoColeccion','infoColText','demo_coleccion.xlsx',state.colData.length);
+    showFileInfo('infoPrestamos','infoPrestText','demo_prestamos.xlsx',state.prestData.length);
+    document.getElementById('dropCol').classList.add('loaded');
+    document.getElementById('dropPrest').classList.add('loaded');
+    document.getElementById('processBtn').style.display='block';
+    showColumnMapping([
+      {archivo:'Colección',field:'topografico',original:'Topografico',found:true,score:1,method:'exacto'},
+      {archivo:'Colección',field:'autor',original:'AUTOR',found:true,score:0.95,method:'exacto'},
+      {archivo:'Colección',field:'titulo',original:'TITULO',found:true,score:0.95,method:'exacto'},
+      {archivo:'Colección',field:'prestamos',original:'Préstamos',found:true,score:0.9,method:'fuzzy'},
+      {archivo:'Préstamos',field:'fecha',original:'Fecha',found:true,score:1,method:'exacto'},
+      {archivo:'Préstamos',field:'carrera',original:'Carrera',found:true,score:1,method:'exacto'},
+      {archivo:'Préstamos',field:'tipo_usuario',original:'Tipo de usuario',found:true,score:0.95,method:'exacto'},
+    ]);
+    setLoaderProgress(100);
+    setTimeout(hideLoader, 300);
+  }, 600);
+}
+
+// Inicializar metodología siempre visible
+renderMetodologia();
+
+/* ============================================================
+   TOOLTIP GLOBAL — position:fixed, nunca recortado por overflow
+   ============================================================ */
+(function() {
+  const tip = document.createElement('div');
+  tip.id = 'global-tooltip';
+  document.body.appendChild(tip);
+  let hideTimer = null;
+
+  document.addEventListener('mouseover', function(e) {
+    const target = e.target.closest('[data-tip]');
+    clearTimeout(hideTimer);
+    if (!target) { tip.style.display = 'none'; return; }
+    tip.textContent = target.getAttribute('data-tip');
+    tip.style.display = 'block';
+    positionTip(target);
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    const target = e.target.closest('[data-tip]');
+    if (target) positionTip(target);
+  });
+
+  document.addEventListener('mouseout', function(e) {
+    if (e.relatedTarget && e.relatedTarget.closest('[data-tip]')) return;
+    hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 80);
+  });
+
+  function positionTip(el) {
+    const rect = el.getBoundingClientRect();
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    let left = rect.left + rect.width / 2 - tw / 2;
+    let top  = rect.top - th - 10;
+    if (top < 6) top = rect.bottom + 10;  // si no cabe arriba → va abajo
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+    tip.style.left = left + 'px';
+    tip.style.top  = top  + 'px';
+  }
+})();
+
+</script>
+</body>
+</html>
