@@ -1547,7 +1547,7 @@ function parseKohaFile(rows, type) {
   const warnings = [];
   const mapping = [];
   const fields = type === 'coleccion'
-    ? ['topografico','tipo_recurso','autor','titulo','anio','prestamos','estado_perdida']
+    ? ['topografico','tipo_recurso','autor','titulo','anio','prestamos','estado_perdida','unidad_academica']
     : ['fecha','carrera','tipo_usuario','transaccion','topografico','titulo','autor','tipo_recurso','unidad_academica'];
 
   const colMap = {};
