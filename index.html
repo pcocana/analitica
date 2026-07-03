@@ -742,6 +742,10 @@ select:focus, input:focus { border-color: var(--navy); }
         <div class="chart-title">👥 Préstamos por tipo de usuario</div>
         <div class="chart-canvas-wrap"><canvas id="chartUsuario"></canvas></div>
       </div>
+      <div class="chart-card">
+        <div class="chart-title">🏫 Préstamos por unidad académica</div>
+        <div class="chart-canvas-wrap"><canvas id="chartUnidad"></canvas></div>
+      </div>
     </div>
     <div class="chart-card" style="margin-bottom:20px;">
       <div class="chart-title">🗺️ Mapa de calor — Intensidad de uso por clasificación Dewey</div>
@@ -779,6 +783,10 @@ select:focus, input:focus { border-color: var(--navy); }
       <div class="filter-group">
         <div class="filter-label">Tipo de usuario</div>
         <select id="filtTipoUsuario" onchange="applyFilters()"><option value="">Todos</option></select>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Unidad académica</div>
+        <select id="filtUnidadAcademica" onchange="applyFilters()"><option value="">Todas</option></select>
       </div>
       <div class="filter-group">
         <div class="filter-label">Área Dewey</div>
@@ -1575,6 +1583,8 @@ function parseKohaFile(rows, type) {
     for (const [field, idx] of Object.entries(colMap)) {
       record[field] = idx !== -1 ? (row[idx]?.toString().trim() || '') : '';
     }
+    if (!record.unidad_academica) record.unidad_academica = 'Sin unidad asignada';
+    if ('autor' in record && !record.autor) record.autor = 'Sin autor';
     if (type === 'prestamos' && record.fecha) {
       const parsed = parseDate(record.fecha);
       if (!parsed) { badDates++; record._fechaInvalida = true; }
@@ -1654,6 +1664,8 @@ function calcIndicadores(colData, prestData) {
   }
   const porCarrera = {};
   for (const p of prestData) { const c=p.carrera||'No especificada'; porCarrera[c]=(porCarrera[c]||0)+1; }
+  const porUnidadAcademica = {};
+  for (const p of prestData) { const u=p.unidad_academica||'Sin unidad asignada'; porUnidadAcademica[u]=(porUnidadAcademica[u]||0)+1; }
   const porTipoUsuario = {};
   for (const p of prestData) { const t=p.tipo_usuario||'No especificado'; porTipoUsuario[t]=(porTipoUsuario[t]||0)+1; }
   const porDeweyPrest = {};
@@ -1751,8 +1763,7 @@ function calcIndicadores(colData, prestData) {
       aniosSinUso,
       estadoUso,
       fuenteUltimo,
-      totalPrestHistorial: prestamosCol,
-      unidad_academica: r.unidad_academica || '—'
+      totalPrestHistorial: prestamosCol
     };
   });
 
@@ -1770,7 +1781,7 @@ function calcIndicadores(colData, prestData) {
     const ul=years[years.length-1],an=years[years.length-2];
     crecimiento=pct(porAnio[ul]-porAnio[an],porAnio[an]);
   }
-  return { totalTitulos, totalEjemplares, titulosUsados, titulosSinUso, prestamosEnCol, totalPrestHist, totalPrest, TC, CU, IR, OB, porAnio, porCarrera, porTipoUsuario, porDeweyPrest, colPorDewey, descarte, descCritico, descAlto, sinUso5mas, sinUso3a4, sinRegistro, activos, avgAnio, edadPromedio, crecimiento, years };
+  return { totalTitulos, totalEjemplares, titulosUsados, titulosSinUso, prestamosEnCol, totalPrestHist, totalPrest, TC, CU, IR, OB, porAnio, porCarrera, porUnidadAcademica, porTipoUsuario, porDeweyPrest, colPorDewey, descarte, descCritico, descAlto, sinUso5mas, sinUso3a4, sinRegistro, activos, avgAnio, edadPromedio, crecimiento, years };
 }
 
 /* ============================================================
@@ -1806,6 +1817,12 @@ function makeCarreraChart(porCarrera) {
   const ctx=document.getElementById('chartCarrera').getContext('2d');
   const sorted=Object.entries(porCarrera).sort((a,b)=>b[1]-a[1]).slice(0,10);
   charts.carrera=new Chart(ctx,{type:'bar',data:{labels:sorted.map(x=>x[0].length>22?x[0].substring(0,20)+'…':x[0]),datasets:[{label:'Préstamos',data:sorted.map(x=>x[1]),backgroundColor:'rgba(30,54,96,0.8)',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{font:{family:'Sora',size:11}}},y:{grid:{display:false},ticks:{font:{family:'Sora',size:10}}}}}});
+}
+function makeUnidadChart(porUnidadAcademica) {
+  destroyChart('unidad');
+  const ctx=document.getElementById('chartUnidad').getContext('2d');
+  const sorted=Object.entries(porUnidadAcademica).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  charts.unidad=new Chart(ctx,{type:'bar',data:{labels:sorted.map(x=>x[0].length>22?x[0].substring(0,20)+'…':x[0]),datasets:[{label:'Préstamos',data:sorted.map(x=>x[1]),backgroundColor:'rgba(201,164,68,0.85)',borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{font:{family:'Sora',size:11}}},y:{grid:{display:false},ticks:{font:{family:'Sora',size:10}}}}}});
 }
 function makeUsuarioChart(porTipoUsuario) {
   destroyChart('usuario');
@@ -2152,6 +2169,7 @@ function renderDashboard(ind, col, prest) {
   makeDeweyChart(ind.colPorDewey);
   makeCarreraChart(ind.porCarrera);
   makeUsuarioChart(ind.porTipoUsuario);
+  makeUnidadChart(ind.porUnidadAcademica);
   makeHeatmap(ind.colPorDewey);
 }
 
@@ -2165,6 +2183,8 @@ function generateAlertas(ind) {
   if (topDewey) alertas.push({type:'info',icon:'📚',msg:`Área <strong>${topDewey[0]}</strong> concentra la mayor circulación: <strong>${topDewey[1].prestamos.toLocaleString()}</strong> préstamos.`});
   const topCarrera=Object.entries(ind.porCarrera).sort((a,b)=>b[1]-a[1])[0];
   if (topCarrera) alertas.push({type:'info',icon:'🎓',msg:`Carrera <strong>${topCarrera[0]}</strong>: mayor número de préstamos (<strong>${topCarrera[1].toLocaleString()}</strong>).`});
+  const topUnidad=Object.entries(ind.porUnidadAcademica).sort((a,b)=>b[1]-a[1])[0];
+  if (topUnidad && topUnidad[0]!=='Sin unidad asignada') alertas.push({type:'info',icon:'🏫',msg:`Unidad académica <strong>${topUnidad[0]}</strong>: mayor número de préstamos (<strong>${topUnidad[1].toLocaleString()}</strong>).`});
   if (ind.crecimiento!==null&&ind.crecimiento<-10) alertas.push({type:'warning',icon:'📉',msg:`La circulación cayó un <strong>${Math.abs(ind.crecimiento)}%</strong> respecto al año anterior.`});
   if (!alertas.length) alertas.push({type:'success',icon:'✅',msg:'Los indicadores generales de la colección se encuentran dentro de parámetros aceptables.'});
   return alertas;
@@ -2183,6 +2203,7 @@ function renderCirculacion(ind, prest) {
   populateSelect('filtAnioHasta', years);
   populateSelect('filtCarrera', Object.keys(ind.porCarrera).sort());
   populateSelect('filtTipoUsuario', Object.keys(ind.porTipoUsuario).sort());
+  populateSelect('filtUnidadAcademica', Object.keys(ind.porUnidadAcademica).sort());
   const deweyAreas=[...new Set(prest.map(p=>p.deweynombre).filter(Boolean))].sort();
   populateSelect('filtDewey', deweyAreas);
 
@@ -2199,8 +2220,9 @@ function applyFilters() {
   const filtAnioHasta=parseInt(document.getElementById('filtAnioHasta').value)||9999;
   const filtTipoUsuario=document.getElementById('filtTipoUsuario').value;
   const filtDewey=document.getElementById('filtDewey').value;
+  const filtUnidadAcademica=document.getElementById('filtUnidadAcademica').value;
 
-  const hasFilter=filtCarrera||filtAnioDesde||filtAnioHasta<9999||filtTipoUsuario||filtDewey;
+  const hasFilter=filtCarrera||filtAnioDesde||filtAnioHasta<9999||filtTipoUsuario||filtDewey||filtUnidadAcademica;
   document.getElementById('circFilterBadge').style.display=hasFilter?'inline-flex':'none';
 
   const base=state.prestData.length?state.prestData:generateDemoPrest();
@@ -2211,6 +2233,7 @@ function applyFilters() {
     if (filtAnioHasta<9999&&a&&a>filtAnioHasta) return false;
     if (filtTipoUsuario&&p.tipo_usuario!==filtTipoUsuario) return false;
     if (filtDewey&&p.deweynombre!==filtDewey) return false;
+    if (filtUnidadAcademica&&p.unidad_academica!==filtUnidadAcademica) return false;
     return true;
   });
 
@@ -2221,7 +2244,7 @@ function applyFilters() {
 }
 
 function resetCircFilters() {
-  ['filtCarrera','filtAnioDesde','filtAnioHasta','filtTipoUsuario','filtDewey'].forEach(id=>{
+  ['filtCarrera','filtAnioDesde','filtAnioHasta','filtTipoUsuario','filtDewey','filtUnidadAcademica'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('circFilterBadge').style.display='none';
@@ -2592,6 +2615,10 @@ function exportExcel() {
   const carData=[['Carrera','Préstamos']];
   for(const [c,n] of Object.entries(ind.porCarrera).sort((a,b)=>b[1]-a[1])) carData.push([c,n]);
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(carData),'Préstamos por Carrera');
+
+  const unidData=[['Unidad académica','Préstamos']];
+  for(const [u,n] of Object.entries(ind.porUnidadAcademica).sort((a,b)=>b[1]-a[1])) unidData.push([u,n]);
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(unidData),'Préstamos por Unidad Acad.');
   const evData=[['Año','Préstamos']];
   for(const [a,n] of Object.entries(ind.porAnio).sort()) evData.push([+a,n]);
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(evData),'Evolución Anual');
