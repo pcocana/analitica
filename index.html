@@ -128,11 +128,15 @@ body {
    ========================================== */
 .upload-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 20px;
   margin-bottom: 24px;
 }
-@media (max-width: 768px) { .upload-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .upload-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .upload-grid { grid-template-columns: 1fr; } }
+
+.upload-card.optional { border-style: dashed; }
+.upload-card.optional .upload-icon { opacity: 0.85; }
 
 /* FIX: la card es ahora un <label> para máxima compatibilidad */
 .upload-card {
@@ -666,6 +670,20 @@ select:focus, input:focus { border-color: var(--navy); }
         <span>✅</span><span id="infoPrestText">Cargado</span>
       </div>
     </label>
+
+    <label class="upload-card optional" id="dropEjem" for="inputEjemplares"
+           ondragover="onDragOver(event,'dropEjem')"
+           ondragleave="onDragLeave('dropEjem')"
+           ondrop="onDrop(event,'ejemplares')">
+      <span class="upload-icon">📦</span>
+      <div class="upload-title">Archivo de Ejemplares <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(opcional)</span></div>
+      <div class="upload-sub">Listado con Número de ejemplares, Título, Autor(es), Copy right — se cruza por título para calcular metros lineales<br>Formatos: .xlsx · .xls · .csv</div>
+      <input type="file" class="upload-input" id="inputEjemplares" accept=".xlsx,.xls,.csv" onchange="onFileSelect(event,'ejemplares')">
+      <div class="upload-btn">📁 Seleccionar archivo</div>
+      <div class="upload-file-info" id="infoEjemplares">
+        <span>✅</span><span id="infoEjemText">Cargado</span>
+      </div>
+    </label>
   </div>
 
   <!-- Warnings mejorados -->
@@ -940,9 +958,18 @@ select:focus, input:focus { border-color: var(--navy); }
           <option value="aniopub">Año publicación</option>
         </select>
       </div>
+      <div class="filter-group">
+        <div class="filter-label" title="Ancho de lomo promedio usado para estimar metros lineales liberados">cm por ejemplar</div>
+        <input type="number" id="filtCmEjemplar" value="2.3" min="0.5" max="10" step="0.1" style="width:80px" onchange="applyDescFiltros()">
+      </div>
       <div style="display:flex;align-items:flex-end;">
         <button class="btn btn-reset btn-sm" onclick="exportDescarteExcel()">📥 Exportar lista</button>
       </div>
+    </div>
+
+    <!-- Resumen ejemplares / metros lineales -->
+    <div class="table-card" id="resumenEjemplaresCard" style="margin-bottom:16px;padding:14px 18px;">
+      <div id="resumenEjemplaresText" style="font-size:13px;color:var(--text);line-height:1.6;"></div>
     </div>
 
     <!-- Tabla principal -->
@@ -963,6 +990,7 @@ select:focus, input:focus { border-color: var(--navy); }
               <th>Último préstamo</th>
               <th>Años sin uso</th>
               <th>Total prést. histórico</th>
+              <th title="Cantidad de copias de este título encontradas en el catálogo (agrupadas por título)">Ejemplares ℹ</th>
               <th>Estado</th>
               <th>unidad_academica</th>
             </tr>
@@ -1648,7 +1676,7 @@ function semaforoHTML(color, label) { return `<div class="semaforo semaforo-${co
 /* ============================================================
    ANALYTICS
    ============================================================ */
-function calcIndicadores(colData, prestData) {
+function calcIndicadores(colData, prestData, ejemplaresIndex) {
   const anioActual = new Date().getFullYear();
   const totalTitulos = colData.length;
   const totalEjemplares = colData.length;
@@ -1767,10 +1795,26 @@ function calcIndicadores(colData, prestData) {
     };
   });
 
-  const sinUso5mas  = descarte.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 5).length;
-  const sinUso3a4   = descarte.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 3 && r.aniosSinUso < 5).length;
-  const sinRegistro = descarte.filter(r => r.fuenteUltimo === 'ninguno').length;
-  const activos     = descarte.filter(r => r.aniosSinUso !== null && r.aniosSinUso < 3).length;
+  // -----------------------------------------------
+  // AGRUPAR POR TÍTULO: el catálogo trae 1 fila por copia física
+  // (mismo título con distinto inventario/topográfico). Para el listado
+  // de descarte se agrupa por título y la cantidad de ejemplares se cuenta
+  // directamente desde el propio catálogo (nº de filas del grupo), sin
+  // depender de un archivo externo.
+  // -----------------------------------------------
+  const descarteAgrupado = groupDescartePorTitulo(descarte, anioActual, ejemplaresIndex);
+
+  const sinUso5mas  = descarteAgrupado.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 5).length;
+  const sinUso3a4   = descarteAgrupado.filter(r => r.aniosSinUso !== null && r.aniosSinUso >= 3 && r.aniosSinUso < 5).length;
+  const sinRegistro = descarteAgrupado.filter(r => r.fuenteUltimo === 'ninguno').length;
+  const activos     = descarteAgrupado.filter(r => r.aniosSinUso !== null && r.aniosSinUso < 3).length;
+
+  // Comparación opcional con archivo externo de ejemplares (solo referencial / control de calidad)
+  const ejemplaresMatchStats = ejemplaresIndex ? {
+    coincideExacto: descarteAgrupado.filter(r => r.ejemplaresArchivo !== null && r.ejemplaresArchivo === r.ejemplares).length,
+    difiere: descarteAgrupado.filter(r => r.ejemplaresArchivo !== null && r.ejemplaresArchivo !== r.ejemplares).length,
+    sinEncontrar: descarteAgrupado.filter(r => r.ejemplaresArchivo === null).length
+  } : null;
 
   // Mantener compatibilidad con campos existentes (dashboard usa descCritico)
   const descCritico = sinUso5mas;
@@ -1781,7 +1825,82 @@ function calcIndicadores(colData, prestData) {
     const ul=years[years.length-1],an=years[years.length-2];
     crecimiento=pct(porAnio[ul]-porAnio[an],porAnio[an]);
   }
-  return { totalTitulos, totalEjemplares, titulosUsados, titulosSinUso, prestamosEnCol, totalPrestHist, totalPrest, TC, CU, IR, OB, porAnio, porCarrera, porUnidadAcademica, porTipoUsuario, porDeweyPrest, colPorDewey, descarte, descCritico, descAlto, sinUso5mas, sinUso3a4, sinRegistro, activos, avgAnio, edadPromedio, crecimiento, years };
+  return { totalTitulos, totalEjemplares, titulosUsados, titulosSinUso, prestamosEnCol, totalPrestHist, totalPrest, TC, CU, IR, OB, porAnio, porCarrera, porUnidadAcademica, porTipoUsuario, porDeweyPrest, colPorDewey, descarte: descarteAgrupado, descarteDetalle: descarte, descCritico, descAlto, sinUso5mas, sinUso3a4, sinRegistro, activos, avgAnio, edadPromedio, crecimiento, years, ejemplaresMatchStats };
+}
+
+/* ============================================================
+   Agrupa el listado de descarte (por copia) en un registro por
+   TÍTULO, contando ejemplares desde el propio catálogo.
+   ============================================================ */
+function groupDescartePorTitulo(copiasRows, anioActual, ejemplaresIndex) {
+  const groups = {};
+  const order = [];
+  for (const r of copiasRows) {
+    const key = normalizeTitulo(r.titulo) || `__sin_titulo_${r.topografico || order.length}`;
+    if (!groups[key]) { groups[key] = []; order.push(key); }
+    groups[key].push(r);
+  }
+
+  return order.map(key => {
+    const copies = groups[key];
+    const base = copies.find(c => c.titulo) || copies[0];
+    const ejemplares = copies.length;
+
+    const totalPrestHistorial = copies.reduce((s, c) => s + (parseInt(c.prestamos) || 0), 0);
+
+    // Último préstamo del título = el más reciente entre todas sus copias
+    let mejorAnio = null;
+    for (const c of copies) {
+      if (typeof c.ultimoPrestamo === 'number') {
+        if (mejorAnio === null || c.ultimoPrestamo > mejorAnio) mejorAnio = c.ultimoPrestamo;
+      }
+    }
+
+    let aniosSinUso = null, ultimoPrestamo = '—', fuenteUltimo;
+    if (mejorAnio !== null) {
+      aniosSinUso = anioActual - mejorAnio;
+      ultimoPrestamo = mejorAnio;
+      fuenteUltimo = 'historial';
+    } else if (copies.every(c => c.fuenteUltimo === 'ninguno')) {
+      fuenteUltimo = 'ninguno';
+      ultimoPrestamo = 'Sin registro';
+    } else {
+      fuenteUltimo = 'sin_fecha';
+      ultimoPrestamo = 'Sin fecha';
+    }
+
+    let estadoUso;
+    if (fuenteUltimo === 'ninguno') estadoUso = 'Sin registro';
+    else if (aniosSinUso === null) estadoUso = 'Sin fecha';
+    else if (aniosSinUso >= 5) estadoUso = '≥5 años sin uso';
+    else if (aniosSinUso >= 3) estadoUso = '3–4 años sin uso';
+    else if (aniosSinUso >= 1) estadoUso = '1–2 años sin uso';
+    else estadoUso = 'Activo';
+
+    const topografico = [...new Set(copies.map(c => c.topografico).filter(Boolean))];
+    const unidades = [...new Set(copies.map(c => c.unidad_academica).filter(Boolean))];
+
+    // Cruce opcional solo para control de calidad (no determina el conteo de ejemplares)
+    const ejLookup = lookupEjemplares(base.titulo, ejemplaresIndex);
+
+    return {
+      titulo: base.titulo,
+      autor: base.autor,
+      deweynombre: base.deweynombre,
+      anioPublicacion: base.anioPublicacion,
+      unidad_academica: unidades.join(' · ') || base.unidad_academica || '',
+      topografico: topografico.length <= 1 ? (topografico[0] || '—') : `${topografico.length} signaturas`,
+      ejemplares,
+      ejemplaresArchivo: ejLookup.ejemplares,
+      ejemplaresArchivoFuente: ejLookup.fuente,
+      prestamos: totalPrestHistorial,
+      totalPrestHistorial,
+      ultimoPrestamo,
+      aniosSinUso,
+      estadoUso,
+      fuenteUltimo
+    };
+  });
 }
 
 /* ============================================================
@@ -1920,7 +2039,8 @@ function makeHeatmap(colPorDewey) {
 /* ============================================================
    APP — Estado global
    ============================================================ */
-let state = { coleccionRaw:null, prestamosRaw:null, colData:[], prestData:[], indicadores:null, warnings:[], processed:false };
+let state = { coleccionRaw:null, prestamosRaw:null, ejemplaresRaw:null, colData:[], prestData:[], indicadores:null, warnings:[], processed:false,
+  ejemplaresIndex:null, ejemplaresMatchStats:null, cmPorEjemplar:2.3 };
 
 // NAV TABS
 document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -1937,7 +2057,7 @@ function onDragOver(e, id) { e.preventDefault(); document.getElementById(id).cla
 function onDragLeave(id) { document.getElementById(id).classList.remove('dragover'); }
 function onDrop(e, tipo) {
   e.preventDefault();
-  const id=tipo==='coleccion'?'dropCol':'dropPrest';
+  const id=tipo==='coleccion'?'dropCol':tipo==='prestamos'?'dropPrest':'dropEjem';
   document.getElementById(id).classList.remove('dragover');
   const file=e.dataTransfer.files[0];
   if (file) processFile(file, tipo);
@@ -1964,7 +2084,7 @@ function processInChunks(rows, chunkSize, onProgress, onDone) {
 }
 
 function processFile(file, tipo) {
-  showLoader(`Leyendo ${tipo==='coleccion'?'colección':'préstamos'}…`, 0);
+  showLoader(`Leyendo ${tipo==='coleccion'?'colección':tipo==='prestamos'?'préstamos':'ejemplares'}…`, 0);
   const reader = new FileReader();
   reader.onerror = () => { hideLoader(); alert('Error al leer el archivo.'); };
   reader.onload = e => {
@@ -2004,6 +2124,18 @@ function processFile(file, tipo) {
 }
 
 function finishFileLoad(rows, tipo, file) {
+  if (tipo === 'ejemplares') {
+    const parsedEj = parseEjemplaresFile(rows);
+    state.ejemplaresRaw = rows;
+    state.ejemplaresIndex = parsedEj.index;
+    showFileInfo('infoEjemplares','infoEjemText', file.name, parsedEj.count);
+    document.getElementById('dropEjem').classList.add('loaded');
+    state.warnings = [...state.warnings.filter(w=>!w.includes('ejemplares')), ...parsedEj.warnings];
+    showWarnings(state.warnings);
+    hideLoader();
+    return;
+  }
+
   const parsed = parseKohaFile(rows, tipo);
   if (tipo === 'coleccion') {
     state.coleccionRaw = rows; state.colData = parsed.data;
@@ -2025,6 +2157,90 @@ function finishFileLoad(rows, tipo, file) {
   showWarnings(state.warnings);
   if (state.colData.length > 0 || state.prestData.length > 0) document.getElementById('processBtn').style.display = 'block';
   hideLoader();
+}
+
+/* ============================================================
+   ARCHIVO DE EJEMPLARES (cruce por título)
+   ============================================================ */
+function normalizeTitulo(str) {
+  if (!str) return '';
+  return str.toString()
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function parseEjemplaresFile(rows) {
+  const warnings = [];
+  if (!rows || rows.length < 2) return { index: { exact:{}, prefix:{} }, count: 0, warnings: ['Archivo de ejemplares vacío o sin datos'] };
+
+  const headers = rows[0].map(h => (h || '').toString().trim().toLowerCase());
+  const findCol = (aliases) => {
+    for (const a of aliases) {
+      const i = headers.findIndex(h => h === a);
+      if (i !== -1) return i;
+    }
+    for (const a of aliases) {
+      const i = headers.findIndex(h => h.includes(a));
+      if (i !== -1) return i;
+    }
+    return -1;
+  };
+
+  const idxEjemplares = findCol(['número ejemplares','numero ejemplares','n° ejemplares','ejemplares','cantidad ejemplares','cantidad']);
+  const idxTitulo     = findCol(['titulo','título']);
+  const idxAutor      = findCol(['autor(es)','autor','autores']);
+  const idxAnio       = findCol(['copy right','copyright','año','ano','anio']);
+
+  if (idxTitulo === -1 || idxEjemplares === -1) {
+    warnings.push('No se pudo detectar las columnas "Número ejemplares" y/o "Titulo" en el archivo de ejemplares. Verifique los encabezados.');
+    return { index: { exact:{}, prefix:{} }, count: 0, warnings };
+  }
+
+  const exact = {};
+  const prefix = {};
+  let count = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || !r[idxTitulo]) continue;
+    const tituloRaw = r[idxTitulo];
+    const key = normalizeTitulo(tituloRaw);
+    if (!key) continue;
+    const ejemplares = parseInt(r[idxEjemplares]) || 0;
+    const entry = {
+      ejemplares,
+      titulo: tituloRaw.toString().trim(),
+      autor: idxAutor !== -1 ? (r[idxAutor] || '') : '',
+      anio: idxAnio !== -1 ? (r[idxAnio] || '') : ''
+    };
+    exact[key] = entry;
+    const pkey = key.slice(0, 40);
+    if (!prefix[pkey]) prefix[pkey] = entry;
+    count++;
+  }
+
+  return { index: { exact, prefix }, count, warnings };
+}
+
+/* El catálogo puede traer varias filas para el mismo título (una por cada copia física).
+   El listado de descarte se agrupa por título con groupDescartePorTitulo(); esta función
+   solo resuelve la cantidad de ejemplares reportada por el archivo externo opcional,
+   usada únicamente como control de calidad. */
+function lookupEjemplares(titulo, ejemplaresIndex) {
+  if (!ejemplaresIndex || !titulo) return { ejemplares: null, fuente: 'sin_archivo' };
+  const key = normalizeTitulo(titulo);
+  if (!key) return { ejemplares: null, fuente: 'sin_titulo' };
+  if (ejemplaresIndex.exact[key]) {
+    return { ejemplares: ejemplaresIndex.exact[key].ejemplares, fuente: 'exacto' };
+  }
+  const pkey = key.slice(0, 40);
+  if (ejemplaresIndex.prefix[pkey]) {
+    return { ejemplares: ejemplaresIndex.prefix[pkey].ejemplares, fuente: 'aproximado' };
+  }
+  return { ejemplares: null, fuente: 'sin_match' };
 }
 
 function parseCSV(text) {
@@ -2084,7 +2300,7 @@ function processData() {
       const col=state.colData.length?state.colData:generateDemoCol();
       const prest=state.prestData.length?state.prestData:generateDemoPrest();
       setLoaderProgress(30);
-      state.indicadores=calcIndicadores(col,prest);
+      state.indicadores=calcIndicadores(col,prest,state.ejemplaresIndex);
       setLoaderProgress(60);
       renderDashboard(state.indicadores,col,prest);
       setLoaderProgress(75);
@@ -2493,9 +2709,29 @@ function applyDescFiltros(descarteData) {
 
   document.getElementById('descTotalLabel').textContent = `${filtered.length.toLocaleString('es-CL')} títulos`;
 
+  // Resumen de ejemplares y metros lineales estimados para la vista filtrada actual
+  const cmInput = document.getElementById('filtCmEjemplar');
+  const cmPorEjemplar = parseFloat(cmInput ? cmInput.value : '') || 2.3;
+  state.cmPorEjemplar = cmPorEjemplar;
+  const totalEjemplaresFiltrado = filtered.reduce((s, r) => s + (parseInt(r.ejemplares) || 1), 0);
+  const metrosLineales = round2((totalEjemplaresFiltrado * cmPorEjemplar) / 100);
+  const stats = ind.ejemplaresMatchStats;
+  const resumenEl = document.getElementById('resumenEjemplaresText');
+  if (resumenEl) {
+    let matchTxt = 'Los ejemplares se cuentan directamente desde el catálogo (una fila por copia, agrupadas por título).';
+    if (stats) {
+      matchTxt += ` Control de calidad con archivo de ejemplares externo: <strong>${stats.coincideExacto.toLocaleString('es-CL')}</strong> títulos coinciden, ` +
+                 `<strong>${stats.difiere.toLocaleString('es-CL')}</strong> difieren, ` +
+                 `<strong>${stats.sinEncontrar.toLocaleString('es-CL')}</strong> no se encontraron en el archivo externo.`;
+    }
+    resumenEl.innerHTML = `📦 <strong>${totalEjemplaresFiltrado.toLocaleString('es-CL')} ejemplares</strong> en ${filtered.length.toLocaleString('es-CL')} títulos ·
+      📏 <strong>${metrosLineales.toLocaleString('es-CL')} m lineales</strong> estimados liberables (a ${cmPorEjemplar} cm/ejemplar)<br>
+      <span style="color:var(--text-muted);font-size:12px">${matchTxt}</span>`;
+  }
+
   const body = document.getElementById('descarteCriticoBody');
   if (!filtered.length) {
-    body.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted)">No hay títulos que coincidan con los filtros seleccionados</td></tr>';
+    body.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-muted)">No hay títulos que coincidan con los filtros seleccionados</td></tr>';
     return;
   }
 
@@ -2514,6 +2750,12 @@ function applyDescFiltros(descarteData) {
 
     const totalPrest = parseInt(r.prestamos) || 0;
 
+    const ejemplaresVal = parseInt(r.ejemplares) || 1;
+    let ejBadge = '';
+    if (r.ejemplaresArchivo !== null && r.ejemplaresArchivo !== ejemplaresVal) {
+      ejBadge = ` <span title="El archivo de ejemplares reporta ${r.ejemplaresArchivo} para este título — el catálogo tiene ${ejemplaresVal} registros" style="color:var(--warning)">⚠</span>`;
+    }
+
     return `<tr>
       <td style="font-family:'JetBrains Mono',monospace;font-size:11px;white-space:nowrap">${r.topografico || '—'}</td>
       <td style="max-width:230px;white-space:normal;font-size:13px">${r.titulo || '—'}</td>
@@ -2523,6 +2765,7 @@ function applyDescFiltros(descarteData) {
       <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${r.ultimoPrestamo}</td>
       <td>${aniosSinUsoTxt}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-size:12px;text-align:center">${totalPrest > 0 ? totalPrest.toLocaleString() : '—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;text-align:center">${ejemplaresVal}${ejBadge}</td>
       <td><span class="kpi-badge ${badgeClass}">${badgeLabel}</span></td>
       <td style="font-size:12px">
     ${r.unidad_academica || '—'}
@@ -2542,10 +2785,28 @@ function exportDescarteExcel() {
   if (dewey) data = data.filter(r => r.deweynombre === dewey);
   data = data.sort((a, b) => (b.aniosSinUso ?? 999) - (a.aniosSinUso ?? 999));
 
-  const rows = [['Topográfico','Título','Autor','Área Dewey','Año pub. (ref.)','Último préstamo','Años sin uso','Total prést. histórico','Estado','Unidad académica']];
-  data.forEach(r => rows.push([r.topografico,r.titulo,r.autor,r.deweynombre,r.anioPublicacion || '',r.ultimoPrestamo,r.aniosSinUso ?? '',parseInt(r.prestamos) || 0,r.estadoUso, r.unidad_academica || '']));
+  const cmPorEjemplar = state.cmPorEjemplar || 2.3;
+  const rows = [['Topográfico','Título','Autor','Área Dewey','Año pub. (ref.)','Último préstamo','Años sin uso','Total prést. histórico','Ejemplares (catálogo)','Ejemplares (archivo externo)','Estado','Unidad académica']];
+  data.forEach(r => {
+    rows.push([r.topografico,r.titulo,r.autor,r.deweynombre,r.anioPublicacion || '',r.ultimoPrestamo,r.aniosSinUso ?? '',parseInt(r.prestamos) || 0,r.ejemplares,r.ejemplaresArchivo ?? '—',r.estadoUso, r.unidad_academica || '']);
+  });
+  const totalEjemplares = data.reduce((s, r) => s + (parseInt(r.ejemplares) || 1), 0);
+  const metrosLineales = round2((totalEjemplares * cmPorEjemplar) / 100);
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Sin circulación');
+
+  const resumenRows = [
+    ['Resumen de descarte', ''],
+    ['Títulos en la lista', data.length],
+    ['Ejemplares totales', totalEjemplares],
+    ['cm por ejemplar utilizado', cmPorEjemplar],
+    ['Metros lineales estimados liberables', metrosLineales],
+    ['', ''],
+    ['Nota', 'La columna "Ejemplares (catálogo)" cuenta directamente cuántas copias de cada título hay en el catálogo (una fila por título, agrupando todas sus copias). "Ejemplares (archivo externo)" es solo referencial, para control de calidad, si se cargó el archivo de ejemplares opcional.']
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumenRows), 'Resumen');
+
   XLSX.writeFile(wb, `Descarte_PUCV_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
@@ -2623,7 +2884,8 @@ function exportExcel() {
   for(const [a,n] of Object.entries(ind.porAnio).sort()) evData.push([+a,n]);
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(evData),'Evolución Anual');
   // Hoja: Candidatos a Descarte — usa campos actuales del modelo (estadoUso, ultimoPrestamo, deweynombre)
-  const descData=[['Topográfico','Título','Autor','Área Dewey','Año pub. (ref.)','Último préstamo','Años sin uso','Total prést. histórico','Estado','Unidad académica']];
+  // ind.descarte viene agrupado por título (1 fila = 1 título, con conteo de ejemplares desde el catálogo)
+  const descData=[['Topográfico','Título','Autor','Área Dewey','Año pub. (ref.)','Último préstamo','Años sin uso','Total prést. histórico','Ejemplares','Estado','Unidad académica']];
   const descFiltered = ind.descarte
     .filter(r => r.aniosSinUso >= 3 || r.fuenteUltimo === 'ninguno')
     .sort((a, b) => (b.aniosSinUso ?? 999) - (a.aniosSinUso ?? 999));
@@ -2636,6 +2898,7 @@ function exportExcel() {
     r.ultimoPrestamo,
     r.aniosSinUso ?? '',
     parseInt(r.prestamos) || 0,
+    r.ejemplares,
     r.estadoUso,
     r.unidad_academica || ''
   ]);
@@ -2691,9 +2954,10 @@ function updateStatusBar() {
 /* CLEAR */
 function clearAll() {
   if (!confirm('¿Limpiar todos los datos cargados?')) return;
-  state={coleccionRaw:null,prestamosRaw:null,colData:[],prestData:[],indicadores:null,warnings:[],processed:false};
-  ['infoColeccion','infoPrestamos'].forEach(id=>document.getElementById(id).classList.remove('visible'));
-  ['dropCol','dropPrest'].forEach(id=>document.getElementById(id).classList.remove('loaded'));
+  state={coleccionRaw:null,prestamosRaw:null,ejemplaresRaw:null,colData:[],prestData:[],indicadores:null,warnings:[],processed:false,
+    ejemplaresIndex:null,ejemplaresMatchStats:null,cmPorEjemplar:2.3};
+  ['infoColeccion','infoPrestamos','infoEjemplares'].forEach(id=>document.getElementById(id).classList.remove('visible'));
+  ['dropCol','dropPrest','dropEjem'].forEach(id=>document.getElementById(id).classList.remove('loaded'));
   document.getElementById('columnsCard').style.display='none';
   document.getElementById('warningsPanel').style.display='none';
   document.getElementById('processBtn').style.display='none';
